@@ -145,3 +145,41 @@ def test_admin_not_mounted_without_secret():
     app = FastAPI()
     KeyGate(app, db_url="sqlite://")
     assert TestClient(app).get("/keygate/keys").status_code == 404
+
+
+def test_expired_key_rejected_and_future_key_works(setup):
+    from datetime import timedelta
+    gate, c = setup
+    live = gate.create_key("acme", expires_in=timedelta(days=1))
+    dead = gate.create_key("acme", expires_in=timedelta(seconds=-1))
+    forever = gate.create_key("acme")
+    assert c.get("/items/1", headers=h(live)).status_code == 200
+    assert c.get("/items/1", headers=h(dead)).status_code == 401
+    assert c.get("/items/1", headers=h(forever)).status_code == 200
+    assert live.expires_at is not None and forever.expires_at is None
+
+
+def test_expires_at_and_expires_in_are_exclusive(setup):
+    from datetime import datetime, timedelta
+    gate, _ = setup
+    with pytest.raises(ValueError):
+        gate.create_key("acme", expires_at=datetime(2999, 1, 1), expires_in=timedelta(days=1))
+
+
+def test_admin_create_with_expires_at(setup):
+    _, c = setup
+    r = c.post("/keygate/keys", json={"owner_id": "a", "expires_at": "2000-01-01T00:00:00"}, headers=ADMIN)
+    assert r.status_code == 201 and r.json()["expires_at"].startswith("2000-01-01")
+    assert c.get("/items/1", headers={"X-API-Key": r.json()["key"]}).status_code == 401
+
+
+def test_old_database_gets_expires_at_column(tmp_path):
+    import sqlite3
+    db = tmp_path / "old.db"
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE keygate_keys (id INTEGER PRIMARY KEY, prefix VARCHAR(16), key_hash VARCHAR(64), "
+                "owner_id VARCHAR(255), name VARCHAR(255), per_minute INTEGER, per_hour INTEGER, "
+                "created_at DATETIME, revoked_at DATETIME)")
+    con.commit(); con.close()
+    gate = KeyGate(db_url=f"sqlite:///{db}")
+    assert gate.create_key("acme").expires_at is None

@@ -13,6 +13,7 @@ class NewKey(BaseModel):
     name: Optional[str] = None
     per_minute: Optional[int] = None
     per_hour: Optional[int] = None
+    expires_at: Optional[datetime] = None  # naive UTC
 
 
 def build_router(gate) -> APIRouter:
@@ -26,7 +27,7 @@ def build_router(gate) -> APIRouter:
     def create(body: NewKey) -> KeyCreated:
         # Only explicitly-sent limits override the gate defaults (null = unlimited).
         limits = {k: getattr(body, k) for k in ("per_minute", "per_hour") if k in body.model_fields_set}
-        return gate.create_key(body.owner_id, body.name, **limits)
+        return gate.create_key(body.owner_id, body.name, expires_at=body.expires_at, **limits)
 
     @router.get("/keys", response_model=List[ApiKey])
     def list_(owner_id: Optional[str] = None, include_revoked: bool = False) -> List[ApiKey]:

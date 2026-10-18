@@ -3,7 +3,7 @@ from typing import Any, Callable, List, Optional
 
 from anyio import to_thread
 from fastapi import FastAPI, HTTPException, Request, Response
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, inspect, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -60,9 +60,17 @@ class KeyGate:
         self._engine = create_engine(db_url, **kwargs)
         self._sessions = sessionmaker(self._engine, expire_on_commit=False)
         Base.metadata.create_all(self._engine)
+        self._add_missing_columns()
 
         if app is not None:
             self.install(app)
+
+    def _add_missing_columns(self) -> None:
+        """Upgrade tables created by an older version (``create_all`` won't alter them)."""
+        cols = {c["name"] for c in inspect(self._engine).get_columns(ApiKeyRow.__tablename__)}
+        if "expires_at" not in cols:
+            with self._engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE {ApiKeyRow.__tablename__} ADD COLUMN expires_at TIMESTAMP"))
 
     # -- wiring -----------------------------------------------------------
 
@@ -113,6 +121,8 @@ class KeyGate:
             row = s.scalar(select(ApiKeyRow).where(ApiKeyRow.prefix == prefix))
         if row is None or row.revoked_at is not None:
             return None
+        if row.expires_at is not None and row.expires_at <= utcnow():
+            return None
         return row if verify_key(presented, row.key_hash) else None
 
     # -- key management ---------------------------------------------------
@@ -123,11 +133,19 @@ class KeyGate:
         name: Optional[str] = None,
         per_minute: Optional[int] = _UNSET,
         per_hour: Optional[int] = _UNSET,
+        expires_at: Optional[datetime] = None,
+        expires_in: Optional[timedelta] = None,
     ) -> KeyCreated:
         """Create a key for ``owner_id``. The plaintext is returned only here.
 
         Omitted limits fall back to the gate defaults; pass ``None`` for unlimited.
+        A key can expire at a naive-UTC ``expires_at`` or after ``expires_in``
+        from now (not both); expired keys get a 401. Default: never expires.
         """
+        if expires_at is not None and expires_in is not None:
+            raise ValueError("pass expires_at or expires_in, not both")
+        if expires_in is not None:
+            expires_at = utcnow() + expires_in
         key, prefix, key_hash = generate_key()
         row = ApiKeyRow(
             prefix=prefix,
@@ -137,6 +155,7 @@ class KeyGate:
             per_minute=self.default_per_minute if per_minute is _UNSET else per_minute,
             per_hour=self.default_per_hour if per_hour is _UNSET else per_hour,
             created_at=utcnow(),
+            expires_at=expires_at,
         )
         with self._sessions() as s:
             s.add(row)

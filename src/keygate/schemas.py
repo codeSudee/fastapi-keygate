@@ -17,6 +17,7 @@ class ApiKey(BaseModel):
     per_hour: Optional[int] = None
     created_at: datetime
     revoked_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
 
 
 class KeyCreated(ApiKey):
