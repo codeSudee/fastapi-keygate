@@ -20,3 +20,31 @@ jobs:
           cache: pip
       - run: pip install -e ".[dev]"
       - run: pytest
+
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: keygate
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      KEYGATE_TEST_REDIS: redis://localhost:6379
+      KEYGATE_TEST_PG_URL: postgresql+psycopg://postgres:postgres@localhost:5432/keygate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev,redis,postgres]"
+      - run: pytest -rs tests/test_extra.py
