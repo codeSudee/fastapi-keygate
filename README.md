@@ -94,7 +94,7 @@ async def hello(key: ApiKey = Depends(gate.require)):
 k = await gate.create_key("acme", per_minute=60)   # every management method is a coroutine
 ```
 
-Tables are created on first use (or `await gate.init()`). For a shared rate-limit store use `limits_uri="async+redis://host:6379"` (`pip install "fastapi-keygate[asyncredis]"`). Usage rows are written immediately (no batching in the async gate).
+Tables are created on first use (or `await gate.init()`). For a shared rate-limit store use `limits_uri="async+redis://host:6379"` (uses the `redis` extra). Usage rows are written immediately (no batching in the async gate).
 
 ## Command line
 

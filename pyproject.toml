@@ -42,7 +42,6 @@ Changelog = "https://github.com/codeSudee/fastapi-keygate/blob/main/CHANGELOG.md
 redis = ["redis>=4"]
 postgres = ["psycopg[binary]>=3"]
 async = ["sqlalchemy[asyncio]>=2.0", "aiosqlite>=0.19"]
-asyncredis = ["coredis>=3.4"]
 asyncpg = ["sqlalchemy[asyncio]>=2.0", "asyncpg>=0.28"]
 dev = ["pytest>=7", "pytest-asyncio>=0.23", "httpx>=0.24", "sqlalchemy[asyncio]>=2.0", "aiosqlite>=0.19"]
 

@@ -33,7 +33,8 @@ class AsyncKeyGate:
     """Same features and arguments as ``KeyGate``, but every operation is a coroutine.
 
     ``db_url`` must use an async driver and ``limits_uri`` an async store
-    (``async+memory://`` default, or e.g. ``async+redis://host:6379``).
+    (``async+memory://`` default, or e.g. ``async+redis://host:6379``, which
+    uses the ``redis`` package; pass ``limits_options`` to override).
     Usage rows are written immediately (no batching).
     """
 
@@ -46,12 +47,18 @@ class AsyncKeyGate:
         default_per_minute: Optional[int] = 60,
         default_per_hour: Optional[int] = None,
         header: str = "X-API-Key",
+        limits_options: Optional[dict] = None,
     ) -> None:
         self.admin_secret = admin_secret
         self.default_per_minute = default_per_minute
         self.default_per_hour = default_per_hour
         self.header = header
-        self._limiter = MovingWindowRateLimiter(storage_from_string(limits_uri))
+        options = dict(limits_options or {})
+        if limits_uri.startswith("async+redis"):
+            # redis-py's asyncio client (same package as the sync extra); limits'
+            # default, coredis, needs its own connection-pool lifecycle.
+            options.setdefault("implementation", "redispy")
+        self._limiter = MovingWindowRateLimiter(storage_from_string(limits_uri, **options))
 
         kwargs: dict = {}
         url = make_url(db_url)
