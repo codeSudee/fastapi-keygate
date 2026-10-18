@@ -74,6 +74,28 @@ With `admin_secret` set, these endpoints are mounted (header `X-Admin-Secret`). 
 | GET | `/keygate/keys/{id}/usage?last_hours=24` | stats |
 | DELETE | `/keygate/usage?older_than_days=90` | delete old usage rows |
 
+## Async apps
+
+Using an async SQLAlchemy driver? `AsyncKeyGate` has the same features, with `await`:
+
+```bash
+pip install "fastapi-keygate[async]"        # + aiosqlite; use [asyncpg] for Postgres
+```
+
+```python
+from keygate import ApiKey, AsyncKeyGate
+
+gate = AsyncKeyGate(app, db_url="sqlite+aiosqlite:///keygate.db", admin_secret="change-me")
+
+@app.get("/hello")
+async def hello(key: ApiKey = Depends(gate.require)):
+    return {"hello": key.owner_id}
+
+k = await gate.create_key("acme", per_minute=60)   # every management method is a coroutine
+```
+
+Tables are created on first use (or `await gate.init()`). For a shared rate-limit store use `limits_uri="async+redis://host:6379"`. Usage rows are written immediately (no batching in the async gate).
+
 ## Command line
 
 No code needed to manage keys (`--db` or `KEYGATE_DB` points at your database, default `sqlite:///keygate.db`):
@@ -105,7 +127,7 @@ KeyGate(
 - **Usage table growth:** every authenticated request adds a row. Call `gate.prune_usage(timedelta(days=90))` periodically (or `DELETE /keygate/usage?older_than_days=90`) to delete old rows.
 - **Busy apps:** `KeyGate(app, usage_batch_size=100)` buffers usage rows in memory and writes them in one commit. They are flushed when the buffer fills, on `gate.flush_usage()`, before `gate.usage()` / `gate.prune_usage()`, and at exit. Rows still buffered are lost if the process crashes.
 - **Schema:** tables are created on startup (`create_all`); there are no migrations yet.
-- **Not included (yet):** async engines.
+- **Not included (yet):** Alembic migrations.
 - Timestamps are naive UTC.
 
 ## Development

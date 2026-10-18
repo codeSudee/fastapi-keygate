@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fastapi-keygate"
-version = "0.3.0"
+version = "0.4.0"
 description = "API-key auth, per-key rate limiting and usage tracking for FastAPI, in a few lines."
 readme = "README.md"
 license = "MIT"
@@ -41,13 +41,16 @@ Changelog = "https://github.com/codeSudee/fastapi-keygate/blob/main/CHANGELOG.md
 [project.optional-dependencies]
 redis = ["redis>=4"]
 postgres = ["psycopg[binary]>=3"]
-dev = ["pytest>=7", "httpx>=0.24"]
+async = ["sqlalchemy[asyncio]>=2.0", "aiosqlite>=0.19"]
+asyncpg = ["sqlalchemy[asyncio]>=2.0", "asyncpg>=0.28"]
+dev = ["pytest>=7", "pytest-asyncio>=0.23", "httpx>=0.24", "sqlalchemy[asyncio]>=2.0", "aiosqlite>=0.19"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/keygate"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "strict"
 
 [project.scripts]
 keygate = "keygate.cli:main"
