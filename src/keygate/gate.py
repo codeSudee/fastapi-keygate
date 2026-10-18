@@ -1,3 +1,4 @@
+import atexit
 from datetime import datetime, timedelta
 from typing import Any, Callable, Iterable, List, Optional
 
@@ -44,12 +45,16 @@ class KeyGate:
         default_per_minute: Optional[int] = 60,
         default_per_hour: Optional[int] = None,
         header: str = "X-API-Key",
+        usage_batch_size: int = 1,
     ) -> None:
         self.admin_secret = admin_secret
         self.default_per_minute = default_per_minute
         self.default_per_hour = default_per_hour
         self.header = header
         self._limiter = RateLimiter(limits_uri)
+        self._usage_buffer = (
+            _usage.UsageBuffer(usage_batch_size) if usage_batch_size > 1 else None
+        )
 
         kwargs: dict = {}
         url = make_url(db_url)
@@ -61,6 +66,9 @@ class KeyGate:
         self._sessions = sessionmaker(self._engine, expire_on_commit=False)
         Base.metadata.create_all(self._engine)
         self._add_missing_columns()
+
+        if self._usage_buffer is not None:
+            atexit.register(self._flush_at_exit)
 
         if app is not None:
             self.install(app)
@@ -245,6 +253,7 @@ class KeyGate:
         """Request counts for a key, by status and endpoint (UTC timestamps)."""
         if last_hours is not None:
             since = utcnow() - timedelta(hours=last_hours)
+        self.flush_usage()
         with self._sessions() as s:
             return _usage.get_stats(s, key_id, since)
 
@@ -254,12 +263,42 @@ class KeyGate:
         The usage table grows with every request, so call this periodically
         (cron, a startup task, ...). Totals from ``usage()`` shrink accordingly.
         """
+        self.flush_usage()
         with self._sessions() as s:
             return _usage.prune(s, utcnow() - older_than)
 
+    def flush_usage(self) -> int:
+        """Write buffered usage rows (see ``usage_batch_size``) in one commit.
+
+        Returns the number of rows written; always 0 when batching is off.
+        """
+        buf = self._usage_buffer
+        if buf is None:
+            return 0
+        rows = buf.take()
+        if not rows:
+            return 0
+        try:
+            with self._sessions() as s:
+                s.add_all(rows)
+                s.commit()
+        except Exception:
+            buf.restore(rows)
+            raise
+        return len(rows)
+
+    def _flush_at_exit(self) -> None:
+        try:
+            self.flush_usage()
+        except Exception:
+            pass
+
     def _log(self, key_id: int, method: str, path: str, status: int) -> None:
-        with self._sessions() as s:
-            _usage.log_request(s, key_id, method, path, status)
+        if self._usage_buffer is None:
+            with self._sessions() as s:
+                _usage.log_request(s, key_id, method, path, status)
+        elif self._usage_buffer.add(key_id, method, path, status):
+            self.flush_usage()
 
 
 class _UsageMiddleware:
