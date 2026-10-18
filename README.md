@@ -1,5 +1,7 @@
 # fastapi-keygate
 
+[![CI](https://github.com/codeSudee/fastapi-keygate/actions/workflows/ci.yml/badge.svg)](https://github.com/codeSudee/fastapi-keygate/actions/workflows/ci.yml)
+
 API-key authentication, per-key rate limiting and per-key usage tracking for FastAPI — in a few lines, with zero setup (SQLite by default).
 
 ```bash
