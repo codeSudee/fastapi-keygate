@@ -48,3 +48,6 @@ packages = ["src/keygate"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[project.scripts]
+keygate = "keygate.cli:main"
