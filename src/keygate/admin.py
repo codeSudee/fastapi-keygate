@@ -1,5 +1,5 @@
 import hmac
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -38,6 +38,13 @@ def build_router(gate) -> APIRouter:
     def revoke(key_id: int) -> None:
         if not gate.revoke(key_id):
             raise HTTPException(404, "Key not found or already revoked")
+
+    @router.post("/keys/{key_id}/rotate", response_model=KeyCreated, status_code=201)
+    def rotate(key_id: int, grace_hours: float = 24) -> KeyCreated:
+        new = gate.rotate(key_id, timedelta(hours=grace_hours))
+        if new is None:
+            raise HTTPException(404, "Key not found, revoked or expired")
+        return new
 
     @router.get("/keys/{key_id}/usage", response_model=UsageStats)
     def usage(key_id: int, since: Optional[datetime] = None, last_hours: Optional[float] = None) -> UsageStats:

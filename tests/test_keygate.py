@@ -219,3 +219,53 @@ def test_invalid_scope_rejected_and_admin_sets_scopes(setup):
     r = c.post("/keygate/keys", json={"owner_id": "a", "scopes": ["read"]}, headers=ADMIN)
     assert r.json()["scopes"] == ["read"]
     assert gate.list_keys("a")[0].scopes == ["read"]
+
+
+def test_rotate_copies_settings_and_retires_old_key(setup):
+    from datetime import timedelta
+    gate, c = setup
+    old = gate.create_key("acme", name="prod", per_minute=7, scopes=["read"])
+    new = gate.rotate(old.id, grace=timedelta(hours=1))
+    assert new.id != old.id and new.key != old.key
+    assert (new.owner_id, new.name, new.per_minute, new.scopes) == ("acme", "prod", 7, ["read"])
+    assert new.expires_at is None  # old had no expiry
+    assert c.get("/items/1", headers=h(old)).status_code == 200  # still in grace
+    assert c.get("/items/1", headers=h(new)).status_code == 200
+    stored_old = next(k for k in gate.list_keys() if k.id == old.id)
+    assert stored_old.expires_at is not None
+
+
+def test_rotate_with_zero_grace_cuts_old_key_immediately(setup):
+    from datetime import timedelta
+    gate, c = setup
+    old = gate.create_key("acme")
+    new = gate.rotate(old.id, grace=timedelta(0))
+    assert c.get("/items/1", headers=h(old)).status_code == 401
+    assert c.get("/items/1", headers=h(new)).status_code == 200
+
+
+def test_rotate_unknown_revoked_or_expired_returns_none(setup):
+    from datetime import timedelta
+    gate, _ = setup
+    assert gate.rotate(999) is None
+    k = gate.create_key("acme"); gate.revoke(k.id)
+    assert gate.rotate(k.id) is None
+    e = gate.create_key("acme", expires_in=timedelta(seconds=-1))
+    assert gate.rotate(e.id) is None
+
+
+def test_rotate_keeps_earlier_expiry_of_old_key(setup):
+    from datetime import timedelta
+    gate, _ = setup
+    old = gate.create_key("acme", expires_in=timedelta(minutes=5))
+    new = gate.rotate(old.id, grace=timedelta(days=7))
+    assert new.expires_at == old.expires_at  # grace never extends the old key
+
+
+def test_admin_rotate(setup):
+    gate, c = setup
+    k = gate.create_key("acme")
+    r = c.post(f"/keygate/keys/{k.id}/rotate?grace_hours=0", headers=ADMIN)
+    assert r.status_code == 201 and r.json()["key"] != k.key
+    assert c.post("/keygate/keys/999/rotate", headers=ADMIN).status_code == 404
+    assert c.get("/items/1", headers=h(k)).status_code == 401

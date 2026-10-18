@@ -206,6 +206,37 @@ class KeyGate:
             s.commit()
         return True
 
+    def rotate(self, key_id: int, grace: timedelta = timedelta(hours=24)) -> Optional[KeyCreated]:
+        """Issue a replacement for ``key_id`` and retire the old key after ``grace``.
+
+        The new key copies the old one's owner, name, limits, scopes and expiry;
+        until the grace period ends both keys work (each with its own rate-limit
+        counter). Returns ``None`` if the key doesn't exist or is already
+        revoked/expired.
+        """
+        now = utcnow()
+        with self._sessions() as s:
+            old = s.get(ApiKeyRow, key_id)
+        if old is None or old.revoked_at is not None:
+            return None
+        if old.expires_at is not None and old.expires_at <= now:
+            return None
+        new = self.create_key(
+            old.owner_id,
+            old.name,
+            per_minute=old.per_minute,
+            per_hour=old.per_hour,
+            scopes=old.scopes.split(),
+            expires_at=old.expires_at,  # the replacement keeps any original expiry
+        )
+        with self._sessions() as s:
+            row = s.get(ApiKeyRow, key_id)
+            cutoff = now + grace
+            if row.expires_at is None or cutoff < row.expires_at:
+                row.expires_at = cutoff
+            s.commit()
+        return new
+
     # -- usage ------------------------------------------------------------
 
     def usage(

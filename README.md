@@ -59,6 +59,8 @@ k = gate.create_key("acme", scopes=["read", "write"])
 def delete(id: int, key: ApiKey = Depends(gate.require_scopes("write"))): ...
 ```
 
+Rotate a key without downtime: `new = gate.rotate(k.id, grace=timedelta(hours=24))` returns a replacement with the same owner, limits and scopes, and the old key keeps working until the grace period ends (`POST /keygate/keys/{id}/rotate?grace_hours=24` in the admin API). Rate-limit counters are per key, so during the grace period the two keys each get their own allowance.
+
 Keys never expire unless you set `expires_at=` (naive UTC datetime) or `expires_in=timedelta(days=30)`; expired keys get `401`. Omitted limits use `KeyGate(default_per_minute=60, default_per_hour=None)`; pass `None` for unlimited.
 
 With `admin_secret` set, these endpoints are mounted (header `X-Admin-Secret`). Without it, nothing is exposed.
@@ -68,6 +70,7 @@ With `admin_secret` set, these endpoints are mounted (header `X-Admin-Secret`). 
 | POST | `/keygate/keys` | `{"owner_id": "acme", "per_minute": 30, "expires_at": "2027-01-01T00:00:00", "scopes": ["read"]}` → returns the key once |
 | GET | `/keygate/keys?owner_id=acme` | list |
 | DELETE | `/keygate/keys/{id}` | revoke |
+| POST | `/keygate/keys/{id}/rotate?grace_hours=24` | replacement key, old one expires after the grace period |
 | GET | `/keygate/keys/{id}/usage?last_hours=24` | stats |
 
 ## Configuration
@@ -86,7 +89,7 @@ KeyGate(
 - **Multiple workers:** the default rate-limit store is in memory, per process. With N Uvicorn/Gunicorn workers a `60/min` limit becomes up to `60×N`. Use `limits_uri="redis://..."` (`pip install fastapi-keygate[redis]`) in that case.
 - **Why not slowapi?** Rate limiting uses [`limits`](https://github.com/alisaifee/limits), the engine slowapi wraps. slowapi is built around per-endpoint decorators that need a `request` argument; keygate's limits belong to the *key*, so they're enforced inside the auth dependency. You can still use slowapi alongside it.
 - **Schema:** tables are created on startup (`create_all`); there are no migrations yet.
-- **Not included (yet):** async engines, rotation.
+- **Not included (yet):** async engines.
 - Timestamps are naive UTC.
 
 ## Development
