@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from .models import UsageRow, utcnow
@@ -13,6 +13,13 @@ def log_request(session: Session, key_id: int, method: str, path: str, status: i
         UsageRow(key_id=key_id, ts=utcnow(), method=method, path=path, status=status)
     )
     session.commit()
+
+
+def prune(session: Session, before: datetime) -> int:
+    """Delete usage rows older than ``before``; returns how many were removed."""
+    result = session.execute(delete(UsageRow).where(UsageRow.ts < before))
+    session.commit()
+    return result.rowcount
 
 
 def get_stats(session: Session, key_id: int, since: Optional[datetime] = None) -> UsageStats:

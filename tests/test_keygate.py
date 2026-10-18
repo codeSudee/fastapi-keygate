@@ -269,3 +269,24 @@ def test_admin_rotate(setup):
     assert r.status_code == 201 and r.json()["key"] != k.key
     assert c.post("/keygate/keys/999/rotate", headers=ADMIN).status_code == 404
     assert c.get("/items/1", headers=h(k)).status_code == 401
+
+
+def test_prune_usage_removes_only_old_rows(setup):
+    from datetime import timedelta
+    from keygate.models import UsageRow, utcnow
+    gate, c = setup
+    k = gate.create_key("acme")
+    for _ in range(3):
+        c.get("/items/1", headers=h(k))
+    with gate._sessions() as s:
+        s.query(UsageRow).filter(UsageRow.id == 1).update({"ts": utcnow() - timedelta(days=100)})
+        s.commit()
+    assert gate.prune_usage(timedelta(days=90)) == 1
+    assert gate.usage(k.id).total == 2
+    assert gate.prune_usage(timedelta(days=90)) == 0
+
+
+def test_admin_prune_usage(setup):
+    gate, c = setup
+    assert c.delete("/keygate/usage", headers=ADMIN).json() == {"deleted": 0}
+    assert c.delete("/keygate/usage").status_code == 403

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `gate.prune_usage()` and `DELETE /keygate/usage` to delete old usage rows.
+
 ## 0.2.0 — 2026-10-18
 
 - **Key expiry:** `create_key(expires_at=..., expires_in=...)`; expired keys get `401`.

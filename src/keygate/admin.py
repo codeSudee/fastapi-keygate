@@ -46,6 +46,10 @@ def build_router(gate) -> APIRouter:
             raise HTTPException(404, "Key not found, revoked or expired")
         return new
 
+    @router.delete("/usage")
+    def prune_usage(older_than_days: float = 90) -> dict:
+        return {"deleted": gate.prune_usage(timedelta(days=older_than_days))}
+
     @router.get("/keys/{key_id}/usage", response_model=UsageStats)
     def usage(key_id: int, since: Optional[datetime] = None, last_hours: Optional[float] = None) -> UsageStats:
         return gate.usage(key_id, since, last_hours)

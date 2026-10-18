@@ -72,6 +72,7 @@ With `admin_secret` set, these endpoints are mounted (header `X-Admin-Secret`). 
 | DELETE | `/keygate/keys/{id}` | revoke |
 | POST | `/keygate/keys/{id}/rotate?grace_hours=24` | replacement key, old one expires after the grace period |
 | GET | `/keygate/keys/{id}/usage?last_hours=24` | stats |
+| DELETE | `/keygate/usage?older_than_days=90` | delete old usage rows |
 
 ## Configuration
 
@@ -88,6 +89,7 @@ KeyGate(
 
 - **Multiple workers:** the default rate-limit store is in memory, per process. With N Uvicorn/Gunicorn workers a `60/min` limit becomes up to `60×N`. Use `limits_uri="redis://..."` (`pip install fastapi-keygate[redis]`) in that case.
 - **Why not slowapi?** Rate limiting uses [`limits`](https://github.com/alisaifee/limits), the engine slowapi wraps. slowapi is built around per-endpoint decorators that need a `request` argument; keygate's limits belong to the *key*, so they're enforced inside the auth dependency. You can still use slowapi alongside it.
+- **Usage table growth:** every authenticated request adds a row. Call `gate.prune_usage(timedelta(days=90))` periodically (or `DELETE /keygate/usage?older_than_days=90`) to delete old rows.
 - **Schema:** tables are created on startup (`create_all`); there are no migrations yet.
 - **Not included (yet):** async engines.
 - Timestamps are naive UTC.

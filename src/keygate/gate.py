@@ -248,6 +248,15 @@ class KeyGate:
         with self._sessions() as s:
             return _usage.get_stats(s, key_id, since)
 
+    def prune_usage(self, older_than: timedelta = timedelta(days=90)) -> int:
+        """Delete usage rows older than ``older_than``; returns the number removed.
+
+        The usage table grows with every request, so call this periodically
+        (cron, a startup task, ...). Totals from ``usage()`` shrink accordingly.
+        """
+        with self._sessions() as s:
+            return _usage.prune(s, utcnow() - older_than)
+
     def _log(self, key_id: int, method: str, path: str, status: int) -> None:
         with self._sessions() as s:
             _usage.log_request(s, key_id, method, path, status)
