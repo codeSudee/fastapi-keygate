@@ -26,6 +26,10 @@ dependencies = [
     "limits>=3.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/codeSudee/fastapi-keygate"
+Issues = "https://github.com/codeSudee/fastapi-keygate/issues"
+
 [project.optional-dependencies]
 redis = ["redis>=4"]
 postgres = ["psycopg[binary]>=3"]
