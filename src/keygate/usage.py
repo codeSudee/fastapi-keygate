@@ -1,5 +1,6 @@
+import threading
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
@@ -13,6 +14,31 @@ def log_request(session: Session, key_id: int, method: str, path: str, status: i
         UsageRow(key_id=key_id, ts=utcnow(), method=method, path=path, status=status)
     )
     session.commit()
+
+
+class UsageBuffer:
+    """Thread-safe in-memory buffer of usage rows, flushed in one commit."""
+
+    def __init__(self, size: int) -> None:
+        self.size = size
+        self._rows: List[UsageRow] = []
+        self._lock = threading.Lock()
+
+    def add(self, key_id: int, method: str, path: str, status: int) -> bool:
+        """Buffer a row; returns True when the buffer has reached ``size``."""
+        row = UsageRow(key_id=key_id, ts=utcnow(), method=method, path=path, status=status)
+        with self._lock:
+            self._rows.append(row)
+            return len(self._rows) >= self.size
+
+    def take(self) -> List[UsageRow]:
+        with self._lock:
+            rows, self._rows = self._rows, []
+            return rows
+
+    def restore(self, rows: List[UsageRow]) -> None:
+        with self._lock:
+            self._rows = rows + self._rows
 
 
 def prune(session: Session, before: datetime) -> int:
