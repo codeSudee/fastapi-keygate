@@ -120,7 +120,7 @@ import os
     reason="KEYGATE_TEST_REDIS / KEYGATE_TEST_PG_ASYNC_URL not set",
 )
 async def test_async_redis_and_postgres():
-    pytest.importorskip("redis")
+    pytest.importorskip("coredis")
     pytest.importorskip("asyncpg")
     app = FastAPI()
     gate = AsyncKeyGate(

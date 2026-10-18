@@ -2,7 +2,7 @@
 
 ## 0.4.0 — 2026-10-18
 
-- **`AsyncKeyGate`:** async twin of `KeyGate` for `sqlite+aiosqlite` / `postgresql+asyncpg` and `async+redis://` stores (`pip install fastapi-keygate[async]`). Same features: auth, scopes, expiry, rotation, usage, admin API.
+- **`AsyncKeyGate`:** async twin of `KeyGate` for `sqlite+aiosqlite` / `postgresql+asyncpg` and `async+redis://` stores (`pip install fastapi-keygate[async]`, plus `[asyncpg]` / `[asyncredis]`). Same features: auth, scopes, expiry, rotation, usage, admin API.
 - Fix: `keygate.__version__` now reports the installed version (was stuck at 0.1.0).
 - CI runs Redis and Postgres integration tests (sync and async).
 
