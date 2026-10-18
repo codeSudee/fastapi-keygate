@@ -13,4 +13,4 @@ def hello(key: ApiKey = Depends(gate.require)):
 
 
 if not gate.list_keys():  # demo only: mint a first key (limit: 5 requests/minute)
-    print("\n  Your API key:", gate.create_key("demo-tenant", per_minute=5).key, "\n")
+    print("\n  Your API key:", gate.create_key("demo-tenant", per_minute=5).key, "\n", flush=True)
