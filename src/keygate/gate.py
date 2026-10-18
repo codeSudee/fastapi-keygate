@@ -1,4 +1,5 @@
 import atexit
+import threading
 from datetime import datetime, timedelta
 from typing import Any, Callable, Iterable, List, Optional
 
@@ -63,7 +64,12 @@ class KeyGate:
             if url.database in (None, "", ":memory:"):
                 kwargs["poolclass"] = StaticPool  # one shared in-memory DB
         self._engine = create_engine(db_url, **kwargs)
-        self._sessions = sessionmaker(self._engine, expire_on_commit=False)
+        make_session = sessionmaker(self._engine, expire_on_commit=False)
+        if kwargs.get("poolclass") is StaticPool:
+            # The shared in-memory SQLite connection is not thread-safe: serialize use.
+            self._sessions = _SerializedSessions(make_session)
+        else:
+            self._sessions = make_session
         Base.metadata.create_all(self._engine)
         self._add_missing_columns()
 
@@ -299,6 +305,37 @@ class KeyGate:
                 _usage.log_request(s, key_id, method, path, status)
         elif self._usage_buffer.add(key_id, method, path, status):
             self.flush_usage()
+
+
+class _SerializedSessions:
+    """Session factory whose sessions hold a lock for their whole lifetime."""
+
+    def __init__(self, make_session: Callable[[], Session]) -> None:
+        self._make = make_session
+        self._lock = threading.RLock()
+
+    def __call__(self) -> "_LockedSession":
+        return _LockedSession(self._make, self._lock)
+
+
+class _LockedSession:
+    def __init__(self, make: Callable[[], Session], lock: Any) -> None:
+        self._make, self._lock = make, lock
+
+    def __enter__(self) -> Session:
+        self._lock.acquire()
+        try:
+            self._session = self._make()
+        except BaseException:
+            self._lock.release()
+            raise
+        return self._session
+
+    def __exit__(self, *exc: Any) -> None:
+        try:
+            self._session.close()
+        finally:
+            self._lock.release()
 
 
 class _UsageMiddleware:

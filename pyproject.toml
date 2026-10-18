@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fastapi-keygate"
-version = "0.2.0"
+version = "0.3.0"
 description = "API-key auth, per-key rate limiting and usage tracking for FastAPI, in a few lines."
 readme = "README.md"
 license = "MIT"

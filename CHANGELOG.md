@@ -1,11 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 — 2026-10-18
 
 - `gate.prune_usage()` and `DELETE /keygate/usage` to delete old usage rows.
 - `keygate` command-line tool (create, list, rotate, revoke, usage, prune).
 - `usage_batch_size` option and `gate.flush_usage()` for batched usage logging (default unchanged).
 - Contributing/security docs and issue/PR templates.
+- Fix: rate-limit check and hit are now atomic within a process.
+- Fix: in-memory SQLite (`sqlite://`) no longer breaks under concurrent requests.
 
 ## 0.2.0 — 2026-10-18
 

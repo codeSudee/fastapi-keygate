@@ -184,3 +184,20 @@ def test_postgres_backend():
         assert c.get("/ping", headers=xk(k)).status_code == 401
     finally:
         gate.revoke(k.id)
+
+
+def test_in_memory_sqlite_is_safe_under_threads():
+    from concurrent.futures import ThreadPoolExecutor
+
+    app = FastAPI()
+    gate = KeyGate(app, db_url="sqlite://")
+
+    @app.get("/x")
+    def x(key: ApiKey = Depends(gate.require)):
+        return "ok"
+
+    k = gate.create_key("acme", per_minute=10)
+    c = TestClient(app)
+    with ThreadPoolExecutor(16) as pool:
+        codes = list(pool.map(lambda _: c.get("/x", headers={"X-API-Key": k.key}).status_code, range(60)))
+    assert set(codes) <= {200, 429} and codes.count(200) == 10

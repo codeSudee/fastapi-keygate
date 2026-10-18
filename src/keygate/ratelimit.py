@@ -1,6 +1,7 @@
 """Thin wrapper over `limits` (the engine slowapi is built on)."""
 
 import math
+import threading
 import time
 from typing import List, Optional, Tuple
 
@@ -12,6 +13,7 @@ from limits.strategies import MovingWindowRateLimiter
 class RateLimiter:
     def __init__(self, uri: str = "memory://") -> None:
         self._limiter = MovingWindowRateLimiter(storage_from_string(uri))
+        self._lock = threading.Lock()  # makes test-then-hit atomic within a process
 
     @staticmethod
     def _items(per_minute: Optional[int], per_hour: Optional[int]) -> List[RateLimitItem]:
@@ -35,6 +37,10 @@ class RateLimiter:
         items = self._items(per_minute, per_hour)
         if not items:
             return True, None
+        with self._lock:
+            return self._hit(items, key_id)
+
+    def _hit(self, items: List[RateLimitItem], key_id: int) -> Tuple[bool, Optional[dict]]:
         ident = ("keygate", str(key_id))
 
         blocked = [i for i in items if not self._limiter.test(i, *ident)]
