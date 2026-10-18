@@ -30,6 +30,23 @@ curl -H "X-API-Key: kg_..." localhost:8000/hello   # 200, then 429 after 5/minut
 
 (The package is `fastapi-keygate` on PyPI; you `import keygate`.)
 
+## Try it in 2 minutes
+
+```bash
+pip install fastapi-keygate uvicorn
+curl -O https://raw.githubusercontent.com/codeSudee/fastapi-keygate/main/examples/app.py
+uvicorn app:app
+```
+
+The terminal prints `Your API key: kg_...`. In a second terminal (paste your key):
+
+```bash
+curl -i localhost:8000/hello                              # 401: no key
+curl -i -H "X-API-Key: kg_..." localhost:8000/hello       # 200, run it 6 times -> 429
+keygate usage 1                                           # see what was counted
+keygate create alice --per-minute 100                     # hand out another key
+```
+
 ## What you get
 
 - **Auth** — `Depends(gate.require)` returns the caller's `ApiKey` (`id`, `owner_id`, limits). Missing/invalid/revoked → `401`. Keys are read from `X-API-Key` or `Authorization: Bearer`, never from query strings (those leak into logs).
