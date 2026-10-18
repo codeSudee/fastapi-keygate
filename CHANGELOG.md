@@ -3,6 +3,9 @@
 ## Unreleased
 
 - `gate.prune_usage()` and `DELETE /keygate/usage` to delete old usage rows.
+- `keygate` command-line tool (create, list, rotate, revoke, usage, prune).
+- `usage_batch_size` option and `gate.flush_usage()` for batched usage logging (default unchanged).
+- Contributing/security docs and issue/PR templates.
 
 ## 0.2.0 — 2026-10-18
 
