@@ -182,4 +182,40 @@ def test_old_database_gets_expires_at_column(tmp_path):
                 "created_at DATETIME, revoked_at DATETIME)")
     con.commit(); con.close()
     gate = KeyGate(db_url=f"sqlite:///{db}")
-    assert gate.create_key("acme").expires_at is None
+    k = gate.create_key("acme", scopes=["read"])
+    assert k.expires_at is None and k.scopes == ["read"]
+
+
+def test_scopes_enforced():
+    app = FastAPI()
+    gate = KeyGate(app, db_url="sqlite://")
+
+    @app.get("/r")
+    def r(key: ApiKey = Depends(gate.require_scopes("read"))):
+        return key.scopes
+
+    @app.post("/w")
+    def w(key: ApiKey = Depends(gate.require_scopes("read", "write"))):
+        return "ok"
+
+    c = TestClient(app)
+    ro = gate.create_key("a", scopes=["read"])
+    rw = gate.create_key("a", scopes=["read", "write", "read"])
+    root = gate.create_key("a", scopes=["*"])
+    none = gate.create_key("a")
+    assert rw.scopes == ["read", "write"]
+    assert c.get("/r", headers=h(ro)).json() == ["read"]
+    assert c.post("/w", headers=h(ro)).status_code == 403
+    assert c.post("/w", headers=h(rw)).status_code == 200
+    assert c.post("/w", headers=h(root)).status_code == 200
+    assert c.get("/r", headers=h(none)).status_code == 403
+    assert c.get("/r").status_code == 401  # auth still comes first
+
+
+def test_invalid_scope_rejected_and_admin_sets_scopes(setup):
+    gate, c = setup
+    with pytest.raises(ValueError):
+        gate.create_key("a", scopes=["bad scope"])
+    r = c.post("/keygate/keys", json={"owner_id": "a", "scopes": ["read"]}, headers=ADMIN)
+    assert r.json()["scopes"] == ["read"]
+    assert gate.list_keys("a")[0].scopes == ["read"]

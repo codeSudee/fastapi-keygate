@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class ApiKey(BaseModel):
@@ -18,6 +18,12 @@ class ApiKey(BaseModel):
     created_at: datetime
     revoked_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
+    scopes: List[str] = []
+
+    @field_validator("scopes", mode="before")
+    @classmethod
+    def _split_scopes(cls, v):
+        return v.split() if isinstance(v, str) else v
 
 
 class KeyCreated(ApiKey):

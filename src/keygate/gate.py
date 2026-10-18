@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, Iterable, List, Optional
 
 from anyio import to_thread
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from sqlalchemy import create_engine, inspect, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
@@ -67,10 +67,16 @@ class KeyGate:
 
     def _add_missing_columns(self) -> None:
         """Upgrade tables created by an older version (``create_all`` won't alter them)."""
-        cols = {c["name"] for c in inspect(self._engine).get_columns(ApiKeyRow.__tablename__)}
-        if "expires_at" not in cols:
-            with self._engine.begin() as conn:
-                conn.execute(text(f"ALTER TABLE {ApiKeyRow.__tablename__} ADD COLUMN expires_at TIMESTAMP"))
+        table = ApiKeyRow.__tablename__
+        cols = {c["name"] for c in inspect(self._engine).get_columns(table)}
+        added = {
+            "expires_at": "TIMESTAMP",
+            "scopes": "VARCHAR(1024) NOT NULL DEFAULT ''",
+        }
+        with self._engine.begin() as conn:
+            for name, ddl in added.items():
+                if name not in cols:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
 
     # -- wiring -----------------------------------------------------------
 
@@ -104,6 +110,20 @@ class KeyGate:
             response.headers.update(headers)
         return ApiKey.model_validate(row)
 
+    def require_scopes(self, *scopes: str) -> Callable[..., ApiKey]:
+        """Dependency factory: like ``require`` but the key must hold every scope.
+
+        A key holding the ``"*"`` scope passes any check. Missing scope -> 403.
+        """
+        needed = set(scopes)
+
+        def dependency(key: ApiKey = Depends(self.require)) -> ApiKey:
+            if not (needed <= set(key.scopes) or "*" in key.scopes):
+                raise HTTPException(403, "API key lacks required scope")
+            return key
+
+        return dependency
+
     def _extract(self, request: Request) -> Optional[str]:
         value = request.headers.get(self.header)
         if value:
@@ -135,6 +155,7 @@ class KeyGate:
         per_hour: Optional[int] = _UNSET,
         expires_at: Optional[datetime] = None,
         expires_in: Optional[timedelta] = None,
+        scopes: Iterable[str] = (),
     ) -> KeyCreated:
         """Create a key for ``owner_id``. The plaintext is returned only here.
 
@@ -146,6 +167,9 @@ class KeyGate:
             raise ValueError("pass expires_at or expires_in, not both")
         if expires_in is not None:
             expires_at = utcnow() + expires_in
+        scopes = list(scopes)
+        if any(not s or s.split() != [s] for s in scopes):
+            raise ValueError("scopes must be non-empty strings without whitespace")
         key, prefix, key_hash = generate_key()
         row = ApiKeyRow(
             prefix=prefix,
@@ -156,6 +180,7 @@ class KeyGate:
             per_hour=self.default_per_hour if per_hour is _UNSET else per_hour,
             created_at=utcnow(),
             expires_at=expires_at,
+            scopes=" ".join(dict.fromkeys(scopes)),
         )
         with self._sessions() as s:
             s.add(row)

@@ -27,6 +27,7 @@ class ApiKeyRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime)
     revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    scopes: Mapped[str] = mapped_column(String(1024), default="", server_default="")  # space-separated
 
 
 class UsageRow(Base):
