@@ -11,13 +11,20 @@ license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.9"
 authors = [{ name = "Sudeepto" }]
-keywords = ["fastapi", "api-key", "authentication", "rate-limiting", "usage-tracking"]
+keywords = ["fastapi", "api-key", "api-keys", "authentication", "rate-limiting", "rate-limit", "usage-tracking", "security", "middleware"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Framework :: FastAPI",
     "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Security",
     "Typing :: Typed",
 ]
 dependencies = [
@@ -29,6 +36,7 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/codeSudee/fastapi-keygate"
 Issues = "https://github.com/codeSudee/fastapi-keygate/issues"
+Changelog = "https://github.com/codeSudee/fastapi-keygate/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 redis = ["redis>=4"]
