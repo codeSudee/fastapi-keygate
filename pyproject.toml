@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fastapi-keygate"
+version = "0.1.0"
+description = "API-key auth, per-key rate limiting and usage tracking for FastAPI, in a few lines."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.9"
+authors = [{ name = "Sudeepto" }]
+keywords = ["fastapi", "api-key", "authentication", "rate-limiting", "usage-tracking"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Topic :: Internet :: WWW/HTTP",
+    "Typing :: Typed",
+]
+dependencies = [
+    "fastapi>=0.100",
+    "sqlalchemy>=2.0",
+    "limits>=3.0",
+]
+
+[project.optional-dependencies]
+redis = ["redis>=4"]
+postgres = ["psycopg[binary]>=3"]
+dev = ["pytest>=7", "httpx>=0.24"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/keygate"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
