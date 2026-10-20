@@ -13,10 +13,11 @@
 <meta name="twitter:title" content="Keygate: API keys for FastAPI">
 <meta name="twitter:description" content="API-key auth, per-key rate limits and usage tracking for FastAPI, in a few lines.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237b86ff'/%3E%3Cpath d='M11 16a5 5 0 1 1 9.6 2H24v3h-3v2h-3v-2h-2.4A5 5 0 0 1 11 16Zm5-2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z' fill='%230a0b10' fill-rule='evenodd'/%3E%3C/svg%3E">
-<script>document.documentElement.classList.remove('no-js');try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<script>document.documentElement.classList.remove('no-js');document.documentElement.classList.add('js');if(!matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('anim');try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+<div class="prog" aria-hidden="true"></div>
 <a class="skip" href="#main">Skip to content</a>
 <header class="top">
  <div class="wrap">
@@ -40,7 +41,7 @@
 <main id="main">
 <div class="hero"><div class="wrap">
  <span class="pill rv"><i></i>Alpha, v0.4 on PyPI</span>
- <h1 class="rv">API keys for FastAPI, <em>in a few lines.</em></h1>
+ <h1>API keys for FastAPI, <em>in a few lines.</em></h1>
  <p class="lead rv">Authentication, per-key rate limits and usage tracking as one FastAPI dependency. SQLite by default, so there is nothing to set up.</p>
  <div class="install rv">
   <span class="p mono" aria-hidden="true">$</span><code id="pip">pip install fastapi-keygate</code>
@@ -69,19 +70,44 @@ def hello(key: ApiKey = Depends(gate.require)):
 
 if not gate.list_keys():  # demo only: mint a first key
     print("Your API key:", gate.create_key("demo-tenant", per_minute=5).key)</code></pre></div>
-  <div class="code rv"><div class="bar"><span>terminal</span></div>
-<pre><code><span class="f">$</span> uvicorn app:app
-<span class="c"># the app prints: Your API key: kg_...</span>
+  <div class="code rv"><div class="bar"><span>terminal</span><button class="copy" id="replay" type="button" hidden>Replay</button></div>
+<pre><code id="term"><span class="ln"><span class="f">$</span> <span class="ty">uvicorn app:app</span></span>
+<span class="ln">Your API key: kg_...</span>
+<span class="ln c">INFO:     Uvicorn running on http://127.0.0.1:8000</span>
 
-<span class="f">$</span> curl -i localhost:8000/hello
-<span class="c"># 401, no key</span>
+<span class="ln"><span class="f">$</span> <span class="ty">curl -i localhost:8000/hello</span></span>
+<span class="ln">HTTP/1.1 <span class="w">401 Unauthorized</span></span> <span class="ln c"># no key</span>
 
-<span class="f">$</span> curl -H "X-API-Key: kg_..." localhost:8000/hello
-<span class="c"># 200, then 429 after 5 per minute,</span>
-<span class="c"># with a Retry-After header</span>
+<span class="ln"><span class="f">$</span> <span class="ty">KEY=kg_...</span></span> <span class="ln c"># the key the app printed</span>
+<span class="ln"><span class="f">$</span> <span class="ty">curl -H "X-API-Key: $KEY" localhost:8000/hello</span></span>
+<span class="ln">{"hello":"demo-tenant"}</span>
 
-<span class="f">$</span> keygate usage 1
-<span class="c"># see what was counted</span></code></pre></div>
+<span class="ln"><span class="f">$</span> <span class="ty">for i in 1 2 3 4; do curl -s -o /dev/null -w "%{http_code}\n" -H "X-API-Key: $KEY" localhost:8000/hello; done</span></span>
+<span class="ln s">200</span>
+<span class="ln s">200</span>
+<span class="ln s">200</span>
+<span class="ln s">200</span> <span class="ln c"># 5 requests so far, the limit is 5 per minute</span>
+
+<span class="ln"><span class="f">$</span> <span class="ty">curl -i -H "X-API-Key: $KEY" localhost:8000/hello</span></span>
+<span class="ln">HTTP/1.1 <span class="w">429 Too Many Requests</span></span>
+<span class="ln">Retry-After: &lt;seconds&gt;</span>
+
+<span class="ln"><span class="f">$</span> <span class="ty">keygate usage 1</span></span> <span class="ln c"># see what was counted</span></code></pre></div>
+ </div>
+</div></section>
+
+<section id="try" class="needs-js"><div class="wrap">
+ <h2 class="rv">Try the rate limit</h2>
+ <p class="sub rv">A simulation running in your browser: a key limited to 5 requests per minute, like the quickstart. No request is sent anywhere.</p>
+ <div class="sim rv">
+  <div class="sim-top"><span class="mono">GET /hello</span><span class="tag">Simulation</span></div>
+  <div class="track" id="simtrack" role="meter" aria-valuemin="0" aria-valuemax="5" aria-valuenow="5" aria-label="Requests remaining this minute"><i id="simfill"></i></div>
+  <div class="sim-meta"><span id="simleft">5 of 5 remaining</span><span class="chips" id="simchips" aria-hidden="true"></span></div>
+  <p class="sim-last mono" id="simlast" role="status">Last response: none yet</p>
+  <div class="sim-btns">
+   <button class="btn primary" id="simsend" type="button">Send request</button>
+   <button class="btn ghost" id="simreset" type="button">Reset</button>
+  </div>
  </div>
 </div></section>
 
