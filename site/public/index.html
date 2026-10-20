@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Keygate: API keys for FastAPI</title>
+<meta name="description" content="fastapi-keygate adds API-key auth, per-key rate limits and usage tracking to FastAPI in a few lines. SQLite by default, sync and async, with a web dashboard. Alpha, MIT licensed.">
+<meta name="theme-color" content="#08090a">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Keygate: API keys for FastAPI">
+<meta property="og:description" content="API-key auth, per-key rate limits and usage tracking for FastAPI, in a few lines. Alpha, MIT licensed.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Keygate: API keys for FastAPI">
+<meta name="twitter:description" content="API-key auth, per-key rate limits and usage tracking for FastAPI, in a few lines.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237b86ff'/%3E%3Cpath d='M11 16a5 5 0 1 1 9.6 2H24v3h-3v2h-3v-2h-2.4A5 5 0 0 1 11 16Zm5-2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z' fill='%230a0b10' fill-rule='evenodd'/%3E%3C/svg%3E">
+<script>document.documentElement.classList.remove('no-js');try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top">
+ <div class="wrap">
+  <a class="brand" href="/" aria-label="Keygate home">
+   <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--accent)"/><path d="M11 16a5 5 0 1 1 9.6 2H24v3h-3v2h-3v-2h-2.4A5 5 0 0 1 11 16Zm5-2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z" fill="var(--accent-fg)" fill-rule="evenodd"/></svg>
+   Keygate
+  </a>
+  <nav class="links" aria-label="Primary">
+   <a class="hide-sm" href="#features">Features</a>
+   <a class="hide-sm" href="#how">How it works</a>
+   <a href="/demo/">Demo</a>
+   <a href="https://github.com/codeSudee/fastapi-keygate">GitHub</a>
+   <button class="icon-btn" id="theme" type="button" aria-label="Toggle light and dark theme">
+    <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+    <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+   </button>
+  </nav>
+ </div>
+</header>
+
+<main id="main">
+<div class="hero"><div class="wrap">
+ <span class="pill rv"><i></i>Alpha, v0.4 on PyPI</span>
+ <h1 class="rv">API keys for FastAPI, <em>in a few lines.</em></h1>
+ <p class="lead rv">Authentication, per-key rate limits and usage tracking as one FastAPI dependency. SQLite by default, so there is nothing to set up.</p>
+ <div class="install rv">
+  <span class="p mono" aria-hidden="true">$</span><code id="pip">pip install fastapi-keygate</code>
+  <button class="copy" type="button" data-target="pip" aria-label="Copy install command">Copy</button>
+ </div>
+ <div class="cta rv">
+  <a class="btn primary" href="/demo/">Try the live demo</a>
+  <a class="btn ghost" href="https://github.com/codeSudee/fastapi-keygate">View on GitHub</a>
+ </div>
+</div></div>
+
+<section id="quickstart"><div class="wrap">
+ <h2 class="rv">The whole quickstart</h2>
+ <p class="sub rv">Protect a route, mint a key, and the limit is enforced per key. You <code>import keygate</code>; the PyPI package is <code>fastapi-keygate</code>.</p>
+ <div class="split">
+  <div class="code rv"><div class="bar"><span>app.py</span><button class="copy" type="button" data-target="src" aria-label="Copy code">Copy</button></div>
+<pre><code id="src">from fastapi import Depends, FastAPI
+from keygate import ApiKey, KeyGate
+
+app = FastAPI()
+gate = KeyGate(app, admin_secret="change-me")  # SQLite, zero setup
+
+@app.get("/hello")
+def hello(key: ApiKey = Depends(gate.require)):
+    return {"hello": key.owner_id}
+
+if not gate.list_keys():  # demo only: mint a first key
+    print("Your API key:", gate.create_key("demo-tenant", per_minute=5).key)</code></pre></div>
+  <div class="code rv"><div class="bar"><span>terminal</span></div>
+<pre><code><span class="f">$</span> uvicorn app:app
+<span class="c"># the app prints: Your API key: kg_...</span>
+
+<span class="f">$</span> curl -i localhost:8000/hello
+<span class="c"># 401, no key</span>
+
+<span class="f">$</span> curl -H "X-API-Key: kg_..." localhost:8000/hello
+<span class="c"># 200, then 429 after 5 per minute,</span>
+<span class="c"># with a Retry-After header</span>
+
+<span class="f">$</span> keygate usage 1
+<span class="c"># see what was counted</span></code></pre></div>
+ </div>
+</div></section>
+
+<section id="features"><div class="wrap">
+ <h2 class="rv">What you get</h2>
+ <p class="sub rv">Small surface, the parts most APIs end up hand-writing.</p>
+ <div class="grid">
+  <div class="card rv"><h3>Hashed, shown once</h3><p>Only a SHA-256 hash is stored. The plaintext key is returned once, at creation. Keys are read from <code>X-API-Key</code> or <code>Authorization: Bearer</code>, never from query strings.</p></div>
+  <div class="card rv"><h3>Per-key rate limits</h3><p>Requests per minute and/or hour, stored on each key. Over the limit returns <code>429</code> with <code>Retry-After</code>; responses carry <code>X-RateLimit-*</code> headers.</p></div>
+  <div class="card rv"><h3>Usage tracking</h3><p>Every authenticated request is logged with timestamp, method, route and status. Query totals by status and endpoint, and prune old rows.</p></div>
+  <div class="card rv"><h3>Rotation with a grace period</h3><p><code>gate.rotate(id, grace=timedelta(hours=24))</code> issues a replacement; the old key keeps working until the grace period ends.</p></div>
+  <div class="card rv"><h3>Scopes and expiry</h3><p>Guard routes with <code>gate.require_scopes("write")</code> (missing scope is <code>403</code>). Keys can expire with <code>expires_in=</code>.</p></div>
+  <div class="card rv"><h3>Sync and async</h3><p><code>KeyGate</code> for sync apps, <code>AsyncKeyGate</code> for async SQLAlchemy drivers, with the same features.</p></div>
+  <div class="card rv"><h3>Web dashboard</h3><p>Browse keys, usage charts and live rate-limit status; edit, rotate or revoke. Mount it with <code>mount_dashboard(app, gate)</code>.</p></div>
+  <div class="card rv"><h3>Opt-in plans</h3><p>Optional per-owner plans cap key counts, per-key limits and scopes. Off unless you pass <code>plans=</code>. Billing is not included.</p></div>
+  <div class="card rv"><h3>CLI included</h3><p><code>keygate create</code>, <code>list</code>, <code>rotate</code>, <code>revoke</code>, <code>usage</code> and <code>prune</code> work without writing code.</p></div>
+ </div>
+</div></section>
+
+<section id="how"><div class="wrap">
+ <h2 class="rv">How it works</h2>
+ <p class="sub rv">Limits belong to the key, so they are enforced inside the auth dependency.</p>
+ <ol class="steps">
+  <li class="rv"><b>Create a key</b><span>From Python, the CLI, the admin API or the dashboard. You see the plaintext once.</span></li>
+  <li class="rv"><b>Client sends it</b><span>In the <code>X-API-Key</code> header. The gate looks up the hash.</span></li>
+  <li class="rv"><b>Gate checks</b><span>Valid, not revoked or expired, within its rate limit. Otherwise 401, 403 or 429.</span></li>
+  <li class="rv"><b>Request is logged</b><span>Your route runs and the usage row records route and status.</span></li>
+ </ol>
+</div></section>
+
+<section id="dashboard"><div class="wrap">
+ <h2 class="rv">A dashboard, built in</h2>
+ <p class="sub rv">Sign in with your admin secret. The live demo runs on seeded sample data.</p>
+ <div class="mock rv" role="img" aria-label="Illustration of the dashboard: summary stats, a requests chart and a list of keys">
+  <div class="tb"><i></i><i></i><i></i></div>
+  <div class="row"><div class="stat">Active keys<b>12</b></div><div class="stat">Requests, 24h<b>4,210</b></div><div class="stat">Rate limited<b>38</b></div></div>
+  <svg viewBox="0 0 600 140" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".4"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs><path d="M0 110C60 100 90 60 150 70S240 110 300 80 400 20 450 40 540 70 600 30V140H0Z" fill="url(#g)"/><path d="M0 110C60 100 90 60 150 70S240 110 300 80 400 20 450 40 540 70 600 30" fill="none" stroke="var(--accent)" stroke-width="2.5"/></svg>
+  <div class="keys"><div><span class="mono">kg_a1b2c3…</span><span>acme / prod</span></div><div><span class="mono">kg_d4e5f6…</span><span>acme / staging</span></div></div>
+ </div>
+ <p class="mock-cap">Illustration only. <a href="/demo/">Open the real thing</a>: sample data, enter any value to sign in.</p>
+</div></section>
+
+<section id="status"><div class="wrap">
+ <div class="note rv">
+  <h2 style="font-size:22px;margin:0 0 10px">Status</h2>
+  <p>Keygate is alpha (0.x). The API may change between minor versions. It is MIT licensed.</p>
+  <p>Not included yet: database migrations (tables are created on startup). With several workers, use a Redis limits store, since the default is per process. Feedback and bug reports are welcome as <a href="https://github.com/codeSudee/fastapi-keygate/issues">GitHub issues</a>.</p>
+ </div>
+</div></section>
+</main>
+
+<footer><div class="wrap">
+ <span>MIT licensed. Alpha software.</span>
+ <nav aria-label="Footer">
+  <a href="https://github.com/codeSudee/fastapi-keygate">GitHub</a>
+  <a href="https://pypi.org/project/fastapi-keygate/">PyPI</a>
+  <a href="https://github.com/codeSudee/fastapi-keygate/issues">Issues</a>
+  <a href="/demo/">Live demo</a>
+ </nav>
+</div></footer>
+<script src="/main.js" defer></script>
+</body>
+</html>

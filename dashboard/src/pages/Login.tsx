@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth";
 import { Logo } from "@/components/Shell";
 import { Badge, Button, EASE, Icon, Input, Magnetic } from "@/components/ui";
 import { useTheme } from "@/lib/theme";
+import { DEMO } from "@/lib/api";
 
 const FEATURES = [
   { title: "Generate and manage keys", body: "Each key is shown once, then stored hashed. Name it, scope it, set an expiry." },
@@ -233,6 +234,7 @@ export default function Login() {
             />
             <Magnetic strength={0.08}><Button variant="primary" type="submit" loading={busy} className="h-10 w-full">Sign in</Button></Magnetic>
           </motion.form>
+          {DEMO && <p className="mt-4 text-center text-xs text-muted">Demo: enter any value. <a href="/" className="underline underline-offset-2 hover:text-fg">Back to site</a></p>}
           <p className="mt-6 text-center text-xs text-faint">Your secret is exchanged for a short-lived session token and never stored in the browser.</p>
         </motion.main>
 

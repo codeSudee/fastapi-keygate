@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { useApi } from "@/lib/useApi";
+import { DEMO } from "@/lib/api";
 import type { PlansResponse } from "@/lib/types";
 import { cx, EASE, Icon, PageSkeleton } from "./ui";
 
@@ -67,6 +68,11 @@ export function Shell() {
       </aside>
 
       <main id="main" className="md:pl-[72px] lg:pl-60">
+        {DEMO && (
+          <p className="border-b border-line bg-raised/60 px-4 py-1.5 text-center text-xs text-muted">
+            Live demo with sample data. Nothing is saved. <a href="/" className="font-medium text-fg underline underline-offset-2">Back to site</a>
+          </p>
+        )}
         <div className="mx-auto w-full max-w-[1180px] px-4 pb-28 pt-8 sm:px-6 md:pb-16 md:pt-10 lg:px-10">
           <motion.div key={pathname.startsWith("/keys") ? "/keys" : pathname} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: EASE }}>
             <Suspense fallback={<PageSkeleton />}><Outlet /></Suspense>

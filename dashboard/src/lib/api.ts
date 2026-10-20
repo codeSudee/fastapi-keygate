@@ -1,4 +1,6 @@
 const BASE = "/keygate/dashboard/api";
+/** True only in `vite build --mode demo`: the API is mocked in the browser (see demoApi.ts). */
+export const DEMO = import.meta.env.MODE === "demo";
 const TOKEN_KEY = "kg-token";
 
 export class ApiError extends Error {
@@ -30,6 +32,18 @@ let onUnauthorized: () => void = () => {};
 export const setUnauthorizedHandler = (fn: () => void) => { onUnauthorized = fn; };
 
 export async function api<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
+  if (DEMO) {
+    // Dead code in normal builds, so demoApi is never bundled there.
+    const { demoRequest, DemoError } = await import("./demoApi");
+    try {
+      return await demoRequest<T>(path, (init.method ?? "GET").toUpperCase(), init.json);
+    } catch (e) {
+      if (e instanceof DemoError) {
+        throw new ApiError(e.status, e.message);
+      }
+      throw e;
+    }
+  }
   const headers = new Headers(init.headers);
   const s = session.get();
   if (s) headers.set("Authorization", `Bearer ${s.token}`);
