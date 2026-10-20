@@ -210,6 +210,46 @@ class KeyGate:
         with self._sessions() as s:
             return [ApiKey.model_validate(r) for r in s.scalars(q)]
 
+    def get_key(self, key_id: int) -> Optional[ApiKey]:
+        with self._sessions() as s:
+            row = s.get(ApiKeyRow, key_id)
+            return ApiKey.model_validate(row) if row is not None else None
+
+    def update_key(
+        self,
+        key_id: int,
+        name: Any = _UNSET,
+        per_minute: Any = _UNSET,
+        per_hour: Any = _UNSET,
+        scopes: Any = _UNSET,
+        expires_at: Any = _UNSET,
+    ) -> Optional[ApiKey]:
+        """Change a live key's name, limits, scopes or expiry; omitted fields are kept.
+
+        Pass ``None`` for a limit or ``expires_at`` to clear it. Returns ``None``
+        if the key doesn't exist or is revoked. The secret never changes.
+        """
+        if scopes is not _UNSET:
+            scopes = list(scopes)
+            if any(not x or x.split() != [x] for x in scopes):
+                raise ValueError("scopes must be non-empty strings without whitespace")
+        with self._sessions() as s:
+            row = s.get(ApiKeyRow, key_id)
+            if row is None or row.revoked_at is not None:
+                return None
+            if name is not _UNSET:
+                row.name = name
+            if per_minute is not _UNSET:
+                row.per_minute = per_minute
+            if per_hour is not _UNSET:
+                row.per_hour = per_hour
+            if scopes is not _UNSET:
+                row.scopes = " ".join(dict.fromkeys(scopes))
+            if expires_at is not _UNSET:
+                row.expires_at = expires_at
+            s.commit()
+            return ApiKey.model_validate(row)
+
     def revoke(self, key_id: int) -> bool:
         """Revoke a key. Returns False if it doesn't exist or was already revoked."""
         with self._sessions() as s:
@@ -262,6 +302,10 @@ class KeyGate:
         self.flush_usage()
         with self._sessions() as s:
             return _usage.get_stats(s, key_id, since)
+
+    def rate_status(self, key: ApiKey) -> List[dict]:
+        """Read-only view of a key's live rate-limit windows (consumes nothing)."""
+        return self._limiter.status(key.id, key.per_minute, key.per_hour)
 
     def prune_usage(self, older_than: timedelta = timedelta(days=90)) -> int:
         """Delete usage rows older than ``older_than``; returns the number removed.

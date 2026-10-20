@@ -66,3 +66,26 @@ class RateLimiter:
             "X-RateLimit-Remaining": str(st.remaining),
             "X-RateLimit-Reset": str(math.ceil(st.reset_time)),
         }
+
+    def status(
+        self, key_id: int, per_minute: Optional[int], per_hour: Optional[int]
+    ) -> List[dict]:
+        """Current window state per configured limit, without consuming a request."""
+        out = []
+        ident = ("keygate", str(key_id))
+        for limit, item in (
+            (per_minute, RateLimitItemPerMinute(per_minute) if per_minute else None),
+            (per_hour, RateLimitItemPerHour(per_hour) if per_hour else None),
+        ):
+            if item is None:
+                continue
+            st = self._limiter.get_window_stats(item, *ident)
+            out.append(
+                {
+                    "window": "minute" if isinstance(item, RateLimitItemPerMinute) else "hour",
+                    "limit": limit,
+                    "remaining": max(0, st.remaining),
+                    "reset_time": math.ceil(st.reset_time),
+                }
+            )
+        return out

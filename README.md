@@ -154,3 +154,18 @@ pip install -e ".[dev]" && pytest
 ```
 
 MIT licensed.
+
+## Web dashboard
+
+A hosted UI for viewing keys, usage graphs, live rate-limit status, and editing, rotating or revoking keys.
+
+```python
+from keygate.dashboard import mount_dashboard
+
+gate = KeyGate(app, admin_secret="change-me")
+mount_dashboard(app, gate)  # open /keygate/dashboard and sign in with the admin secret
+```
+
+The API lives under `/keygate/dashboard/api` and reads straight from the gate's own key and usage tables. Try it with sample traffic: `python examples/dashboard_demo.py` (secret: `demo-secret`).
+
+The UI source is in `dashboard/` (React, TypeScript, Tailwind, Framer Motion). Build it into the package with `cd dashboard && npm install && npm run build`, or run `npm run dev` for hot reload against a local API on :8000.

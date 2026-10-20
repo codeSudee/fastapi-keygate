@@ -5,3 +5,9 @@ dist/
 *.db
 .pytest_cache/
 .claude/
+
+# dashboard
+dashboard/node_modules/
+src/keygate/dashboard_static/
+dashboard-demo.db
+dashboard/*.tsbuildinfo
