@@ -1,6 +1,6 @@
 # fastapi-keygate: session context
 
-Last updated: 2026-10-22. Read this first in a new session, then verify against the code and `git log`.
+Last updated: 2026-10-20. Read this first in a new session, then verify against the code and `git log`.
 
 ## What this is
 `fastapi-keygate` (import `keygate`): API-key auth, per-key rate limits and usage tracking for FastAPI.
@@ -20,7 +20,7 @@ GitHub: codeSudee/fastapi-keygate. PyPI: 0.4.0. Python tests: `.venv/bin/python 
 
 ## In progress: paid plans (not shipped)
 Design is in `docs/PLANS.md`. User decisions so far:
-- Model (revised 2026-10-22, after web research, user approved): **stay self-hosted.** Plans are a feature for the adopter's *own* customers (reading B in `docs/PLANS.md`, one `owner_id` per customer); the adopter's own billing webhook can call `set_plan(..., billing_status=...)`. No hosted multi-tenant service, developer accounts or Stripe inside Keygate until real users ask. The original hosted plan was rejected for lack of demand, solo-maintainer ops cost, and missing tenancy.
+- Model (revised 2026-10-20, after web research, user approved): **stay self-hosted.** Plans are a feature for the adopter's *own* customers (reading B in `docs/PLANS.md`, one `owner_id` per customer); the adopter's own billing webhook can call `set_plan(..., billing_status=...)`. No hosted multi-tenant service, developer accounts or Stripe inside Keygate until real users ask. The original hosted plan was rejected for lack of demand, solo-maintainer ops cost, and missing tenancy.
 - Tier numbers: use the proposals in `docs/PLANS.md`. **Prices (decided): Free $0, Pro $12/mo, Team $39/mo, USD, monthly.** They come from a thin, unverified benchmark (Apitally, Zuplo, Unkey) and are untested against real demand.
 - Build order: (0) plan model, sync gate -> (1) async gate support -> (2) pricing/billing page in the dashboard -> (3) Stripe checkout, **test mode only**.
 - Done: (0) plan model on the sync gate, request-time clamping of existing keys, and (1) the same on `AsyncKeyGate`, including the dashboard API on both. Deliberately minimal: max_keys, per-key caps, scope limits, 402 on a plan limit. Owner-level rate windows and per-plan retention pruning are deferred.
@@ -28,11 +28,11 @@ Design is in `docs/PLANS.md`. User decisions so far:
 - Step (3) Stripe test mode is deferred indefinitely, see the revised model above.
 - Grace period (decided, not yet coded): past-due keeps full access for ~14 days (configurable by the adopter); after that block new keys and fall back to the default plan; never auto-revoke existing keys. Based on dunning guidance of 3-4 retries over 2-3 weeks; verify against Stripe docs before relying on it.
 
-## Where we left off (2026-10-21) / next step
+## Where we left off (2026-10-20) / next step
 - Run `git log --oneline -3`. 78 tests pass, 3 skipped. Steps (0), (1), (2) done. Also shipped: URL-synced ranges/filters, skeleton fallback, unsaved-changes cue on Settings.
 - Nothing is blocked on the user. Next only if demand shows up: enforce `billing_status` with the grace policy; a hosted offering would need tenancy design first.
 - Before step 3, raise the hosted-model gap (developer accounts/login, how usage reaches the user's service) with the user; do not build billing on top of it silently.
-- Small open items: phone width verified 2026-10-22 at 390px and 360px via same-origin iframes (no horizontal overflow, row menu flips upward); not tested on real device emulation; in-app sidebar navigation still discards unsaved Settings edits silently (needs a data router or a confirm in Shell).
+- Small open items: phone width verified 2026-10-20 at 390px and 360px via same-origin iframes (no horizontal overflow, row menu flips upward); not tested on real device emulation; in-app sidebar navigation still discards unsaved Settings edits silently (needs a data router or a confirm in Shell).
 - Dev loop: `python examples/dashboard_demo.py` (secret `demo-secret`) serves the built UI at `localhost:8000/keygate/dashboard`; rebuild UI with `cd dashboard && npm run build`. Stop the demo with `pkill -f dashboard_demo.py`.
 - Always run `git log --oneline -5` and `git status` first to confirm this file is current.
 
