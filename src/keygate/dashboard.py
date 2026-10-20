@@ -15,13 +15,15 @@ token (HMAC-SHA256 keyed by the secret), so the secret itself is not kept in the
 import base64
 import hashlib
 import hmac
+import inspect
 import json
 import time
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Deque, Dict, List, Optional, Tuple
+from typing import Any, Callable, Deque, Dict, List, Optional, Tuple
 
+from anyio import to_thread
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -246,23 +248,50 @@ def build_router(gate) -> APIRouter:
         d["state"] = _key_state(k)
         return d
 
-    def rate(k: ApiKey) -> List[dict]:
-        return gate.rate_status(k) if _key_state(k) == "active" else []
+    # Works with KeyGate (sync, run in a thread) and AsyncKeyGate (awaited).
+    is_async = inspect.iscoroutinefunction(gate.list_keys)
 
-    def key_or_404(key_id: int) -> ApiKey:
-        k = gate.get_key(key_id)
+    async def call(method: str, /, *args: Any, **kw: Any) -> Any:
+        fn = getattr(gate, method)
+        if is_async:
+            return await fn(*args, **kw)
+        return await to_thread.run_sync(lambda: fn(*args, **kw))
+
+    async def db(fn: Callable[[Any], Any]) -> Any:
+        """Run ``fn(sync_session)`` against the gate's database."""
+        if is_async:
+            await gate.init()
+            async with gate._sessions() as s:
+                return await s.run_sync(fn)
+
+        def run() -> Any:
+            with gate._sessions() as s:
+                return fn(s)
+
+        return await to_thread.run_sync(run)
+
+    async def flush() -> None:
+        if hasattr(gate, "flush_usage"):
+            await call("flush_usage")
+
+    async def rate(k: ApiKey) -> List[dict]:
+        return await call("rate_status", k) if _key_state(k) == "active" else []
+
+    async def key_or_404(key_id: int) -> ApiKey:
+        k = await call("get_key", key_id)
         if k is None:
             raise HTTPException(404, "Key not found")
         return k
 
     @guarded.get("/overview")
-    def overview(range: str = "24h") -> dict:
+    async def overview(range: str = "24h") -> dict:
         since, step, n = _window(range)
         prev_since = since - (RANGES[range][0])
-        gate.flush_usage()
-        keys = gate.list_keys(include_revoked=True)
+        await flush()
+        keys = await call("list_keys", include_revoked=True)
         by_id = {k.id: k for k in keys}
-        with gate._sessions() as s:
+
+        def query(s):
             cur = _bucketed(s, since, step, n).get(None, _blank(n))
             prev_total = s.scalar(
                 select(func.count())
@@ -283,11 +312,14 @@ def build_router(gate) -> APIRouter:
                 .order_by(func.count().desc())
                 .limit(6)
             ).all()
+            return cur, prev_total, per_key, endpoints
+
+        cur, prev_total, per_key, endpoints = await db(query)
         totals = _totals(cur)
         active = [k for k in keys if _key_state(k) == "active"]
-        limited_now = sum(
-            1 for k in active for r in rate(k) if r["remaining"] == 0
-        )
+        limited_now = 0
+        for k in active:
+            limited_now += sum(1 for r in await rate(k) if r["remaining"] == 0)
         return {
             "range": range,
             "totals": totals,
@@ -314,17 +346,21 @@ def build_router(gate) -> APIRouter:
         }
 
     @guarded.get("/keys")
-    def keys(range: str = "7d", include_revoked: bool = True) -> dict:
+    async def keys(range: str = "7d", include_revoked: bool = True) -> dict:
         since, step, n = _window(range)
-        gate.flush_usage()
-        rows = gate.list_keys(include_revoked=include_revoked)
-        with gate._sessions() as s:
+        await flush()
+        rows = await call("list_keys", include_revoked=include_revoked)
+
+        def query(s):
             series = _bucketed(s, since, step, n, per_key=True)
             last = dict(
                 s.execute(
                     select(UsageRow.key_id, func.max(UsageRow.ts)).group_by(UsageRow.key_id)
                 ).all()
             )
+            return series, last
+
+        series, last = await db(query)
         items = []
         for k in rows:
             b = series.get(k.id, _blank(n))
@@ -334,19 +370,19 @@ def build_router(gate) -> APIRouter:
                     "usage": _totals(b),
                     "spark": [x["ok"] + x["errors"] + x["limited"] for x in b],
                     "last_used": _iso(last.get(k.id)),
-                    "rate": rate(k),
+                    "rate": await rate(k),
                 }
             )
         return {"range": range, "keys": items, "defaults": _defaults()}
 
     @guarded.post("/keys", status_code=201)
-    def create(body: CreateKey) -> dict:
+    async def create(body: CreateKey) -> dict:
         limits = {
             f: getattr(body, f) for f in ("per_minute", "per_hour") if f in body.model_fields_set
         }
         try:
-            created = gate.create_key(
-                body.owner_id, body.name, expires_at=body.expires_at, scopes=body.scopes, **limits
+            created = await call(
+                "create_key", body.owner_id, body.name, expires_at=body.expires_at, scopes=body.scopes, **limits
             )
         except PlanLimitError as e:
             return JSONResponse(e.payload(), status_code=402)
@@ -355,10 +391,10 @@ def build_router(gate) -> APIRouter:
         return {**serialize(created), "key": created.key}
 
     @guarded.patch("/keys/{key_id}")
-    def patch(key_id: int, body: PatchKey) -> dict:
+    async def patch(key_id: int, body: PatchKey) -> dict:
         changes = {f: getattr(body, f) for f in body.model_fields_set}
         try:
-            updated = gate.update_key(key_id, **changes)
+            updated = await call("update_key", key_id, **changes)
         except PlanLimitError as e:
             return JSONResponse(e.payload(), status_code=402)
         except ValueError as e:
@@ -368,24 +404,23 @@ def build_router(gate) -> APIRouter:
         return serialize(updated)
 
     @guarded.delete("/keys/{key_id}", status_code=204)
-    def revoke(key_id: int) -> None:
-        if not gate.revoke(key_id):
+    async def revoke(key_id: int) -> None:
+        if not await call("revoke", key_id):
             raise HTTPException(404, "Key not found or already revoked")
 
     @guarded.post("/keys/{key_id}/rotate", status_code=201)
-    def rotate(key_id: int, grace_hours: float = 24) -> dict:
-        new = gate.rotate(key_id, timedelta(hours=grace_hours))
+    async def rotate(key_id: int, grace_hours: float = 24) -> dict:
+        new = await call("rotate", key_id, timedelta(hours=grace_hours))
         if new is None:
             raise HTTPException(404, "Key not found, revoked or expired")
         return {**serialize(new), "key": new.key}
 
     @guarded.get("/keys/{key_id}/usage")
-    def key_usage(key_id: int, range: str = "24h") -> dict:
-        k = key_or_404(key_id)
+    async def key_usage(key_id: int, range: str = "24h") -> dict:
+        k = await key_or_404(key_id)
         since, step, n = _window(range)
-        stats = gate.usage(key_id, since)
-        with gate._sessions() as s:
-            series = _bucketed(s, since, step, n, key_id=key_id).get(None, _blank(n))
+        stats = await call("usage", key_id, since)
+        series = (await db(lambda s: _bucketed(s, since, step, n, key_id=key_id))).get(None, _blank(n))
         return {
             "key": serialize(k),
             "range": range,
@@ -398,7 +433,7 @@ def build_router(gate) -> APIRouter:
             ],
             "first_request": _iso(stats.first_request),
             "last_request": _iso(stats.last_request),
-            "rate": rate(k),
+            "rate": await rate(k),
         }
 
     def plan_json(p) -> dict:
@@ -410,16 +445,16 @@ def build_router(gate) -> APIRouter:
             raise HTTPException(404, "Plans are not enabled on this server")
 
     @guarded.get("/plans")
-    def plans() -> dict:
+    async def plans() -> dict:
         if gate.plans is None:
             return {"enabled": False, "plans": [], "default": None}
         return {"enabled": True, "plans": [plan_json(p) for p in gate.plans.values()], "default": gate.default_plan}
 
     @guarded.get("/plan")
-    def get_plan(owner_id: str) -> dict:
+    async def get_plan(owner_id: str) -> dict:
         plans_on()
-        plan = gate.get_plan(owner_id)
-        active = gate.active_key_count(owner_id)
+        plan = await call("get_plan", owner_id)
+        active = await call("active_key_count", owner_id)
         return {
             "owner_id": owner_id,
             "plan": plan_json(plan),
@@ -428,13 +463,13 @@ def build_router(gate) -> APIRouter:
         }
 
     @guarded.put("/plan")
-    def put_plan(body: SetPlan) -> dict:
+    async def put_plan(body: SetPlan) -> dict:
         plans_on()
         try:
-            gate.set_plan(body.owner_id, body.plan)
+            await call("set_plan", body.owner_id, body.plan)
         except ValueError as e:
             raise HTTPException(422, str(e))
-        return get_plan(body.owner_id)
+        return await get_plan(body.owner_id)
 
     def _defaults() -> dict:
         return {

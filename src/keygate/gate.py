@@ -187,6 +187,7 @@ class KeyGate:
         expires_at: Optional[datetime] = None,
         expires_in: Optional[timedelta] = None,
         scopes: Iterable[str] = (),
+        _rotating: bool = False,
     ) -> KeyCreated:
         """Create a key for ``owner_id``. The plaintext is returned only here.
 
@@ -206,7 +207,8 @@ class KeyGate:
         with self._sessions() as s:
             plan = self._plan_for(s, owner_id)
             if plan is not None:
-                check_key_count(self.plans, plan, self._active_count(s, owner_id))
+                if not _rotating:  # the old key retires after its grace period
+                    check_key_count(self.plans, plan, self._active_count(s, owner_id))
                 check_scopes(self.plans, plan, scopes)
                 per_minute = clamp_limit(per_minute, plan.key_per_minute)
                 per_hour = clamp_limit(per_hour, plan.key_per_hour)
@@ -374,6 +376,7 @@ class KeyGate:
             per_hour=old.per_hour,
             scopes=old.scopes.split(),
             expires_at=old.expires_at,  # the replacement keeps any original expiry
+            _rotating=True,
         )
         with self._sessions() as s:
             row = s.get(ApiKeyRow, key_id)

@@ -9,20 +9,21 @@ import asyncio
 import math
 import time
 from datetime import datetime, timedelta
-from typing import Any, Callable, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from limits import RateLimitItem, RateLimitItemPerHour, RateLimitItemPerMinute
 from limits.storage import storage_from_string
 from limits.aio.strategies import MovingWindowRateLimiter
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.engine import make_url
 from sqlalchemy.pool import StaticPool
 
 from . import usage as _usage
 from .keys import generate_key, parse_prefix, verify_key
-from .models import ApiKeyRow, Base, UsageRow, utcnow
+from .models import ApiKeyRow, Base, OwnerRow, UsageRow, utcnow
+from .plans import Plan, check_key_count, check_scopes, clamp_limit
 from .schemas import ApiKey, KeyCreated, UsageStats
 
 _UNSET: Any = object()
@@ -36,6 +37,8 @@ class AsyncKeyGate:
     (``async+memory://`` default, or e.g. ``async+redis://host:6379``, which
     uses the ``redis`` package; pass ``limits_options`` to override).
     Usage rows are written immediately (no batching).
+
+    ``plans``/``default_plan`` work as in ``KeyGate``: opt-in per-owner caps.
     """
 
     def __init__(
@@ -48,7 +51,13 @@ class AsyncKeyGate:
         default_per_hour: Optional[int] = None,
         header: str = "X-API-Key",
         limits_options: Optional[dict] = None,
+        plans: Optional[Dict[str, Plan]] = None,
+        default_plan: str = "free",
     ) -> None:
+        if plans is not None and default_plan not in plans:
+            raise ValueError(f"default_plan {default_plan!r} is not in plans")
+        self.plans = plans
+        self.default_plan = default_plan
         self.admin_secret = admin_secret
         self.default_per_minute = default_per_minute
         self.default_per_hour = default_per_hour
@@ -106,7 +115,13 @@ class AsyncKeyGate:
             )
         request.scope.setdefault("state", {})[_STATE_KEY] = row.id
 
-        allowed, headers = await self._hit(row.id, row.per_minute, row.per_hour)
+        per_minute, per_hour = row.per_minute, row.per_hour
+        if self.plans is not None:  # a downgrade must limit existing keys too
+            plan = await self.get_plan(row.owner_id)
+            per_minute = clamp_limit(per_minute, plan.key_per_minute)
+            per_hour = clamp_limit(per_hour, plan.key_per_hour)
+
+        allowed, headers = await self._hit(row.id, per_minute, per_hour)
         if not allowed:
             raise HTTPException(429, "Rate limit exceeded", headers=headers)
         if headers:
@@ -198,6 +213,7 @@ class AsyncKeyGate:
         expires_at: Optional[datetime] = None,
         expires_in: Optional[timedelta] = None,
         scopes: Iterable[str] = (),
+        _rotating: bool = False,
     ) -> KeyCreated:
         """Create a key; the plaintext is returned only here. See ``KeyGate.create_key``."""
         if expires_at is not None and expires_in is not None:
@@ -208,19 +224,28 @@ class AsyncKeyGate:
         if any(not s or s.split() != [s] for s in scopes):
             raise ValueError("scopes must be non-empty strings without whitespace")
         await self.init()
-        key, prefix, key_hash = generate_key()
-        row = ApiKeyRow(
-            prefix=prefix,
-            key_hash=key_hash,
-            owner_id=owner_id,
-            name=name,
-            per_minute=self.default_per_minute if per_minute is _UNSET else per_minute,
-            per_hour=self.default_per_hour if per_hour is _UNSET else per_hour,
-            created_at=utcnow(),
-            expires_at=expires_at,
-            scopes=" ".join(dict.fromkeys(scopes)),
-        )
+        per_minute = self.default_per_minute if per_minute is _UNSET else per_minute
+        per_hour = self.default_per_hour if per_hour is _UNSET else per_hour
         async with self._sessions() as s:
+            plan = await self._plan_for(s, owner_id)
+            if plan is not None:
+                if not _rotating:  # the old key retires after its grace period
+                    check_key_count(self.plans, plan, await self._active_count(s, owner_id))
+                check_scopes(self.plans, plan, scopes)
+                per_minute = clamp_limit(per_minute, plan.key_per_minute)
+                per_hour = clamp_limit(per_hour, plan.key_per_hour)
+            key, prefix, key_hash = generate_key()
+            row = ApiKeyRow(
+                prefix=prefix,
+                key_hash=key_hash,
+                owner_id=owner_id,
+                name=name,
+                per_minute=per_minute,
+                per_hour=per_hour,
+                created_at=utcnow(),
+                expires_at=expires_at,
+                scopes=" ".join(dict.fromkeys(scopes)),
+            )
             s.add(row)
             await s.commit()
         return KeyCreated(**ApiKey.model_validate(row).model_dump(), key=key)
@@ -236,6 +261,128 @@ class AsyncKeyGate:
             q = q.where(ApiKeyRow.revoked_at.is_(None))
         async with self._sessions() as s:
             return [ApiKey.model_validate(r) for r in await s.scalars(q)]
+
+    async def get_key(self, key_id: int) -> Optional[ApiKey]:
+        await self.init()
+        async with self._sessions() as s:
+            row = await s.get(ApiKeyRow, key_id)
+            return ApiKey.model_validate(row) if row is not None else None
+
+    async def update_key(
+        self,
+        key_id: int,
+        name: Any = _UNSET,
+        per_minute: Any = _UNSET,
+        per_hour: Any = _UNSET,
+        scopes: Any = _UNSET,
+        expires_at: Any = _UNSET,
+    ) -> Optional[ApiKey]:
+        """Change a live key; omitted fields are kept. See ``KeyGate.update_key``."""
+        if scopes is not _UNSET:
+            scopes = list(scopes)
+            if any(not x or x.split() != [x] for x in scopes):
+                raise ValueError("scopes must be non-empty strings without whitespace")
+        await self.init()
+        async with self._sessions() as s:
+            row = await s.get(ApiKeyRow, key_id)
+            if row is None or row.revoked_at is not None:
+                return None
+            plan = await self._plan_for(s, row.owner_id)
+            if plan is not None:
+                if per_minute is not _UNSET and per_minute != row.per_minute:
+                    per_minute = clamp_limit(per_minute, plan.key_per_minute)
+                if per_hour is not _UNSET and per_hour != row.per_hour:
+                    per_hour = clamp_limit(per_hour, plan.key_per_hour)
+                if scopes is not _UNSET and list(dict.fromkeys(scopes)) != row.scopes.split():
+                    check_scopes(self.plans, plan, scopes)
+            if name is not _UNSET:
+                row.name = name
+            if per_minute is not _UNSET:
+                row.per_minute = per_minute
+            if per_hour is not _UNSET:
+                row.per_hour = per_hour
+            if scopes is not _UNSET:
+                row.scopes = " ".join(dict.fromkeys(scopes))
+            if expires_at is not _UNSET:
+                row.expires_at = expires_at
+            await s.commit()
+            return ApiKey.model_validate(row)
+
+    async def rate_status(self, key: ApiKey) -> List[dict]:
+        """Read-only view of a key's live rate-limit windows (consumes nothing)."""
+        ident = ("keygate", str(key.id))
+        out = []
+        for limit, window, item in (
+            (key.per_minute, "minute", RateLimitItemPerMinute(key.per_minute) if key.per_minute else None),
+            (key.per_hour, "hour", RateLimitItemPerHour(key.per_hour) if key.per_hour else None),
+        ):
+            if item is None:
+                continue
+            st = await self._limiter.get_window_stats(item, *ident)
+            out.append(
+                {"window": window, "limit": limit, "remaining": max(0, st.remaining), "reset_time": math.ceil(st.reset_time)}
+            )
+        return out
+
+    # -- plans ------------------------------------------------------------
+
+    async def _plan_for(self, s: AsyncSession, owner_id: str) -> Optional[Plan]:
+        if self.plans is None:
+            return None
+        row = await s.get(OwnerRow, owner_id)
+        # an id that's no longer in the catalog falls back to the default plan
+        return self.plans.get(row.plan if row else self.default_plan, self.plans[self.default_plan])
+
+    async def _active_count(self, s: AsyncSession, owner_id: str) -> int:
+        now = utcnow()
+        return await s.scalar(
+            select(func.count())
+            .select_from(ApiKeyRow)
+            .where(
+                ApiKeyRow.owner_id == owner_id,
+                ApiKeyRow.revoked_at.is_(None),
+                or_(ApiKeyRow.expires_at.is_(None), ApiKeyRow.expires_at > now),
+            )
+        )
+
+    async def get_plan(self, owner_id: str) -> Optional[Plan]:
+        """The owner's plan, or ``None`` when plans are not enabled."""
+        await self.init()
+        async with self._sessions() as s:
+            return await self._plan_for(s, owner_id)
+
+    async def set_plan(
+        self,
+        owner_id: str,
+        plan_id: str,
+        billing_ref: Any = _UNSET,
+        billing_status: Any = _UNSET,
+    ) -> Plan:
+        """Put an owner on ``plan_id``. Existing keys are never revoked or rewritten."""
+        if self.plans is None:
+            raise ValueError("plans are not enabled; pass AsyncKeyGate(plans=...)")
+        if plan_id not in self.plans:
+            raise ValueError(f"unknown plan {plan_id!r}")
+        await self.init()
+        now = utcnow()
+        async with self._sessions() as s:
+            row = await s.get(OwnerRow, owner_id)
+            if row is None:
+                row = OwnerRow(owner_id=owner_id, plan=plan_id, plan_changed_at=now, created_at=now)
+                s.add(row)
+            elif row.plan != plan_id:
+                row.plan, row.plan_changed_at = plan_id, now
+            if billing_ref is not _UNSET:
+                row.billing_ref = billing_ref
+            if billing_status is not _UNSET:
+                row.billing_status = billing_status
+            await s.commit()
+        return self.plans[plan_id]
+
+    async def active_key_count(self, owner_id: str) -> int:
+        await self.init()
+        async with self._sessions() as s:
+            return await self._active_count(s, owner_id)
 
     async def revoke(self, key_id: int) -> bool:
         """Revoke a key. Returns False if it doesn't exist or was already revoked."""
@@ -267,6 +414,7 @@ class AsyncKeyGate:
             per_hour=old.per_hour,
             scopes=old.scopes.split(),
             expires_at=old.expires_at,
+            _rotating=True,
         )
         async with self._sessions() as s:
             row = await s.get(ApiKeyRow, key_id)
