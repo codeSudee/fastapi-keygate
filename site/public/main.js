@@ -117,6 +117,7 @@ else{
   }
   rb.addEventListener('click',play);
   if(!('IntersectionObserver' in window))return;
+  reset();
   var to=new IntersectionObserver(function(es){if(es[0].isIntersecting){to.disconnect();play()}},{threshold:.4});
   to.observe(code.closest('.code'));
 })();
