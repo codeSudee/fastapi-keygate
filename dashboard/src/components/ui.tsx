@@ -2,7 +2,7 @@ import {
   forwardRef, useEffect, useId, useRef,
   type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode,
 } from "react";
-import { animate, AnimatePresence, motion, useInView, useMotionValue, useReducedMotion, useTransform } from "framer-motion";
+import { animate, AnimatePresence, motion, useInView, useMotionValue, useReducedMotion, useSpring, useTransform } from "framer-motion";
 import { lenis } from "@/lib/scroll";
 import { fmtCompact } from "@/lib/format";
 
@@ -25,10 +25,34 @@ export function Reveal({ children, delay = 0, className, as = "div" }: { childre
   );
 }
 
-/* ---- Card -------------------------------------------------------------- */
-export function Card({ className, children, ...rest }: { className?: string; children: ReactNode } & React.HTMLAttributes<HTMLDivElement>) {
+/* ---- Magnetic wrapper: nudges its child toward a fine pointer. Decorative only. ---- */
+export function Magnetic({ children, strength = 0.25, className }: { children: ReactNode; strength?: number; className?: string }) {
+  const reduce = useReducedMotion();
+  const x = useSpring(0, { stiffness: 300, damping: 22, mass: 0.4 });
+  const y = useSpring(0, { stiffness: 300, damping: 22, mass: 0.4 });
+  const ref = useRef<HTMLDivElement>(null);
   return (
-    <div {...rest} className={cx("rounded-2xl border border-line bg-panel shadow-card", className)}>
+    <motion.div
+      ref={ref}
+      className={className}
+      style={reduce ? undefined : { x, y }}
+      onPointerMove={(e) => {
+        if (reduce || e.pointerType !== "mouse" || !ref.current) return;
+        const r = ref.current.getBoundingClientRect();
+        x.set((e.clientX - (r.left + r.width / 2)) * strength);
+        y.set((e.clientY - (r.top + r.height / 2)) * strength);
+      }}
+      onPointerLeave={() => { x.set(0); y.set(0); }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/* ---- Card -------------------------------------------------------------- */
+export function Card({ className, children, lift, ...rest }: { className?: string; children: ReactNode; lift?: boolean } & React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div {...rest} className={cx("rounded-2xl border border-line bg-panel shadow-card", lift && "transition-[transform,border-color,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:border-line-strong hover:shadow-pop motion-reduce:transform-none", className)}>
       {children}
     </div>
   );
@@ -49,7 +73,7 @@ export function CardHeader({ title, hint, action }: { title: string; hint?: stri
 /* ---- Button ------------------------------------------------------------ */
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 const variants: Record<Variant, string> = {
-  primary: "bg-accent text-accent-fg hover:brightness-110 shadow-[0_1px_0_0_rgb(255_255_255/0.25)_inset]",
+  primary: "bg-accent text-accent-fg hover:-translate-y-px hover:brightness-110 motion-reduce:transform-none shadow-[0_1px_0_0_rgb(255_255_255/0.25)_inset]",
   secondary: "border border-line-strong bg-raised text-fg hover:bg-[color-mix(in_srgb,var(--fg)_8%,var(--raised))]",
   ghost: "text-muted hover:bg-raised hover:text-fg",
   danger: "bg-bad text-white hover:brightness-110",
@@ -62,7 +86,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLBut
         ref={ref}
         disabled={disabled || loading}
         className={cx(
-          "inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium transition-[background,filter,transform,color] duration-150 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50",
+          "inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium transition-[background,filter,transform,color] duration-150 active:translate-y-0 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50",
           size === "sm" ? "h-8 px-3 text-[13px]" : "h-9 px-3.5 text-sm",
           variants[variant],
           className,
@@ -91,8 +115,8 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
     const auto = useId();
     const fid = id ?? auto;
     return (
-      <div className="space-y-1.5">
-        <label htmlFor={fid} className="block text-[13px] font-medium text-fg">{label}</label>
+      <div className="group relative space-y-1.5">
+        <label htmlFor={fid} className="block text-[13px] font-medium text-fg transition-colors group-focus-within:text-accent">{label}</label>
         <input
           ref={ref}
           id={fid}
@@ -107,9 +131,15 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
           )}
           {...rest}
         />
-        {(hint || error) && (
-          <p id={`${fid}-d`} className={cx("text-xs", error ? "text-bad" : "text-faint")}>{error ?? hint}</p>
-        )}
+        <AnimatePresence initial={false} mode="popLayout">
+          {(hint || error) && (
+            <motion.p
+              key={error ? "e" : "h"} id={`${fid}-d`}
+              initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, transition: { duration: 0.1 } }} transition={{ duration: 0.18, ease: EASE }}
+              className={cx("text-xs", error ? "text-bad" : "text-faint")}
+            >{error ?? hint}</motion.p>
+          )}
+        </AnimatePresence>
       </div>
     );
   },
@@ -155,7 +185,7 @@ export const PageSkeleton = () => (
 export function EmptyState({ icon, title, body, action }: { icon: ReactNode; title: string; body: string; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center px-6 py-14 text-center">
-      <div className="mb-4 grid size-11 place-items-center rounded-xl border border-line bg-raised text-muted">{icon}</div>
+      <motion.div initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 380, damping: 20 }} className="mb-4 grid size-11 place-items-center rounded-xl border border-line bg-raised text-muted">{icon}</motion.div>
       <p className="text-[15px] font-medium">{title}</p>
       <p className="mt-1 max-w-sm text-sm text-muted">{body}</p>
       {action && <div className="mt-5">{action}</div>}
@@ -205,7 +235,7 @@ export function Segmented<T extends string>({ value, onChange, options, label }:
             role="radio"
             aria-checked={on}
             onClick={() => onChange(o.value)}
-            className={cx("relative h-7 rounded-md px-3 text-[13px] font-medium transition-colors", on ? "text-fg" : "text-muted hover:text-fg")}
+            className={cx("relative h-7 rounded-md px-3 text-[13px] font-medium transition-[color,transform] active:scale-95", on ? "text-fg" : "text-muted hover:text-fg")}
           >
             {on && (
               <motion.span
@@ -273,11 +303,11 @@ function Overlay({ open, onClose, side, title, children, wide }: { open: boolean
             initial={side ? { x: "100%" } : { opacity: 0, y: 24, scale: 0.97 }}
             animate={side ? { x: 0 } : { opacity: 1, y: 0, scale: 1 }}
             exit={side ? { x: "100%" } : { opacity: 0, y: 12, scale: 0.98 }}
-            transition={{ duration: 0.38, ease: EASE }}
+            transition={side ? { type: "spring", stiffness: 380, damping: 40 } : { type: "spring", stiffness: 420, damping: 32 }}
           >
             <div className="flex items-center justify-between border-b border-line px-5 py-4 sm:px-6">
               <h2 id={tid} className="text-base font-medium tracking-tight">{title}</h2>
-              <button onClick={onClose} aria-label="Close" className="-mr-1.5 grid size-8 place-items-center rounded-lg text-muted transition-colors hover:bg-raised hover:text-fg">
+              <button onClick={onClose} aria-label="Close" className="-mr-1.5 grid size-8 place-items-center rounded-lg text-muted transition-[background,color,transform] hover:rotate-90 hover:bg-raised hover:text-fg motion-reduce:transform-none">
                 <svg viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M5 5l10 10M15 5L5 15" /></svg>
               </button>
             </div>

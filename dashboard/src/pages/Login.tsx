@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from "react";
-import { AnimatePresence, motion, useMotionTemplate, useMotionValue, useReducedMotion, type Variants } from "framer-motion";
+import { AnimatePresence, motion, useMotionTemplate, useMotionValue, useReducedMotion, useSpring, type Variants } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { Logo } from "@/components/Shell";
-import { Badge, Button, EASE, Input } from "@/components/ui";
+import { Badge, Button, EASE, Input, Magnetic } from "@/components/ui";
 
 const FEATURES = [
   { title: "Generate and manage keys", body: "Each key is shown once, then stored hashed. Name it, scope it, set an expiry." },
@@ -38,9 +38,22 @@ function ExampleKey() {
   const last = hits[hits.length - 1];
   const pct = okCount / DEMO_LIMIT;
   const blocked = last && !last.ok;
+  const reduce = useReducedMotion();
+  const rx = useSpring(0, { stiffness: 200, damping: 20 });
+  const ry = useSpring(0, { stiffness: 200, damping: 20 });
 
   return (
-    <div className="rounded-2xl border border-line bg-panel p-5 shadow-card">
+    <motion.div
+      className="rounded-2xl border border-line bg-panel p-5 shadow-card"
+      style={reduce ? undefined : { rotateX: rx, rotateY: ry, transformPerspective: 900 }}
+      onPointerMove={(e) => {
+        if (reduce || e.pointerType !== "mouse") return;
+        const r = e.currentTarget.getBoundingClientRect();
+        ry.set(((e.clientX - r.left) / r.width - 0.5) * 6);
+        rx.set(-((e.clientY - r.top) / r.height - 0.5) * 6);
+      }}
+      onPointerLeave={() => { rx.set(0); ry.set(0); }}
+    >
       <div className="mb-4 flex items-center justify-between">
         <span className="text-xs font-medium uppercase tracking-wider text-faint">Interactive example</span>
         <Badge dot tone={full ? "warn" : "ok"}>{full ? "At limit" : "Active"}</Badge>
@@ -99,7 +112,7 @@ function ExampleKey() {
         </div>
       </div>
       <p className="mt-3 text-xs text-faint">A simulation: nothing is sent. Real keys return a 429 like this once the limit is used up.</p>
-    </div>
+    </motion.div>
   );
 }
 
@@ -170,7 +183,7 @@ export default function Login() {
               placeholder="The admin_secret from KeyGate(…)" value={secret} onChange={(e) => setSecret(e.target.value)}
               error={error} autoFocus
             />
-            <Button variant="primary" type="submit" loading={busy} className="h-10 w-full">Sign in</Button>
+            <Magnetic strength={0.08}><Button variant="primary" type="submit" loading={busy} className="h-10 w-full">Sign in</Button></Magnetic>
           </motion.form>
           <p className="mt-6 text-center text-xs text-faint">Your secret is exchanged for a short-lived session token and never stored in the browser.</p>
         </motion.main>
@@ -191,7 +204,7 @@ export default function Login() {
 
           <ul className="mt-9 grid gap-x-8 gap-y-6 sm:grid-cols-2">
             {FEATURES.map((f) => (
-              <motion.li key={f.title} variants={item} className="flex gap-3">
+              <motion.li key={f.title} variants={item} whileHover={{ x: 3 }} transition={{ type: "spring", stiffness: 400, damping: 28 }} className="flex gap-3">
                 <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] text-accent" aria-hidden>
                   <svg viewBox="0 0 20 20" className="size-3" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8" /></svg>
                 </span>

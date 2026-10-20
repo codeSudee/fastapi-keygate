@@ -17,7 +17,7 @@ const PERIOD: Record<Range, string> = { "1h": "last hour", "24h": "last 24 hours
 function Stat({ label, children, foot, delay }: { label: string; children: React.ReactNode; foot: React.ReactNode; delay: number }) {
   return (
     <Reveal delay={delay}>
-      <Card className="h-full p-5 sm:p-6">
+      <Card lift className="h-full p-5 sm:p-6">
         <p className="text-[13px] text-muted">{label}</p>
         <p className="mt-2 text-[32px] font-semibold leading-none tracking-tight">{children}</p>
         <div className="mt-3 text-[13px] text-muted">{foot}</div>

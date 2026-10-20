@@ -1,6 +1,7 @@
 import { Navigate } from "react-router-dom";
 import { PageHeader } from "@/components/Shell";
-import { Badge, Card, ErrorState, Reveal, Skeleton } from "@/components/ui";
+import { motion } from "framer-motion";
+import { Badge, Card, EASE, ErrorState, Reveal, Skeleton } from "@/components/ui";
 import { useApi } from "@/lib/useApi";
 import type { PlanInfo, PlansResponse } from "@/lib/types";
 
@@ -28,8 +29,9 @@ export default function PlansPage() {
       ) : (
         <Reveal>
           <div className="grid gap-4 md:grid-cols-3">
-            {data.plans.map((p) => (
-              <Card key={p.id} className="flex flex-col p-6">
+            {data.plans.map((p, i) => (
+              <motion.div key={p.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: EASE, delay: 0.08 + i * 0.07 }}>
+              <Card lift className="flex h-full flex-col p-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-base font-semibold">{p.name}</h2>
                   {p.id === data.default && <Badge>Default</Badge>}
@@ -47,6 +49,7 @@ export default function PlansPage() {
                   ))}
                 </dl>
               </Card>
+              </motion.div>
             ))}
           </div>
           <p className="mt-4 text-[13px] text-muted">

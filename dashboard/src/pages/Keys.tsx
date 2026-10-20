@@ -45,13 +45,15 @@ export function RowMenu({ items }: { items: { label: string; onClick: () => void
 
 const COLS = "md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_2rem] lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_6rem_2rem]";
 
-function Row({ k, range, onOpen, mgr }: { k: KeyRow; range: Range; onOpen: () => void; mgr: ReturnType<typeof useKeyManager> }) {
+function Row({ k, range, onOpen, mgr, index }: { k: KeyRow; range: Range; onOpen: () => void; mgr: ReturnType<typeof useKeyManager>; index: number }) {
   const live = k.state === "active";
+  // Captured once at mount: later polls re-render this row but never replay the entrance.
+  const delay = useRef(Math.min(index, 8) * 0.04).current;
   return (
-    <motion.li layout="position" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
+    <motion.li layout="position" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.35, ease: EASE, delay }}>
       <div
         onClick={onOpen}
-        className={`grid cursor-pointer items-center gap-x-6 gap-y-3 px-5 py-4 transition-colors hover:bg-raised/50 sm:px-6 ${COLS} ${live ? "" : "opacity-60"}`}
+        className={`relative grid cursor-pointer items-center gap-x-6 gap-y-3 px-5 py-4 transition-colors before:absolute before:inset-y-3 before:left-0 before:w-0.5 before:origin-center before:scale-y-0 before:rounded-full before:bg-accent before:transition-transform before:duration-200 hover:bg-raised/50 hover:before:scale-y-100 sm:px-6 motion-reduce:before:transition-none ${COLS} ${live ? "" : "opacity-60"}`}
       >
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
@@ -130,8 +132,8 @@ export default function Keys() {
             <EmptyState icon={Icon.key} title={filter === "active" ? "No active keys" : "No keys yet"} body="Generate a key to start authenticating requests to your API." action={<Button variant="primary" onClick={mgr.create}>{Icon.plus} Generate key</Button>} />
           ) : (
             <motion.ul animate={{ opacity: loading ? 0.6 : 1 }} className="divide-y divide-line">
-              <AnimatePresence initial={false}>
-                {keys.map((k) => <Row key={k.id} k={k} range={range} mgr={mgr} onOpen={() => nav(`/keys/${k.id}`)} />)}
+              <AnimatePresence>
+                {keys.map((k, i) => <Row key={k.id} k={k} index={i} range={range} mgr={mgr} onOpen={() => nav(`/keys/${k.id}`)} />)}
               </AnimatePresence>
             </motion.ul>
           )}

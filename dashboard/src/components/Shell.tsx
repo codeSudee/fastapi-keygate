@@ -31,7 +31,7 @@ function SideLink({ to, label, icon, end }: { to: string; label: string; icon: R
           {isActive && (
             <motion.span layoutId="nav-active" className="absolute inset-0 rounded-lg border border-line bg-raised" transition={{ type: "spring", stiffness: 500, damping: 40 }} />
           )}
-          <span className="relative">{icon}</span>
+          <span className="relative transition-transform duration-200 group-hover:scale-110 motion-reduce:transform-none">{icon}</span>
           <span className="relative"><span className="md:sr-only lg:not-sr-only">{label}</span></span>
         </>
       )}
@@ -58,7 +58,7 @@ export function Shell() {
         <nav aria-label="Main" className="flex flex-col gap-1">{nav.map((n) => <SideLink key={n.to} to={n.to} label={n.label} icon={n.icon} end={n.end} />)}</nav>
         <div className="mt-auto flex flex-col gap-1">
           <button onClick={toggle} title={dark ? "Switch to light theme" : "Switch to dark theme"} className="flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted transition-colors hover:bg-raised hover:text-fg md:justify-center lg:justify-start">
-            {dark ? Icon.sun : Icon.moon}<span className="md:sr-only lg:not-sr-only">{dark ? "Light theme" : "Dark theme"}</span>
+            <motion.span key={String(dark)} initial={{ rotate: -90, scale: 0.6, opacity: 0 }} animate={{ rotate: 0, scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>{dark ? Icon.sun : Icon.moon}</motion.span><span className="md:sr-only lg:not-sr-only">{dark ? "Light theme" : "Dark theme"}</span>
           </button>
           <button onClick={logout} title="Sign out" className="flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted transition-colors hover:bg-raised hover:text-fg md:justify-center lg:justify-start">
             {Icon.out}<span className="md:sr-only lg:not-sr-only">Sign out</span>
@@ -76,8 +76,13 @@ export function Shell() {
 
       <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-bg/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
         {nav.map((n) => (
-          <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => cx("flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium", isActive ? "text-fg" : "text-faint")}>
-            {n.icon}{n.label}
+          <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => cx("relative flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors active:scale-95", isActive ? "text-fg" : "text-faint")}>
+            {({ isActive }) => (
+              <>
+                {isActive && <motion.span layoutId="nav-active-m" className="absolute inset-x-5 top-0 h-0.5 rounded-full bg-accent" transition={{ type: "spring", stiffness: 500, damping: 40 }} />}
+                {n.icon}{n.label}
+              </>
+            )}
           </NavLink>
         ))}
         <button onClick={logout} className="flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium text-faint">{Icon.out}Sign out</button>
@@ -94,9 +99,9 @@ export function PageHeader({ title, subtitle, actions, back }: { title: string; 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-balance text-2xl font-semibold tracking-tight sm:text-[28px]">{title}</h1>
-          {subtitle && <p className="mt-1.5 text-[15px] text-muted">{subtitle}</p>}
+          {subtitle && <motion.p initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: EASE, delay: 0.08 }} className="mt-1.5 text-[15px] text-muted">{subtitle}</motion.p>}
         </div>
-        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+        {actions && <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: EASE, delay: 0.14 }} className="flex flex-wrap items-center gap-2">{actions}</motion.div>}
       </div>
     </header>
   );

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { PageHeader } from "@/components/Shell";
-import { Button, Card, CardHeader, ErrorState, Input, Reveal, Skeleton } from "@/components/ui";
+import { AnimatePresence, motion } from "framer-motion";
+import { Button, Card, CardHeader, ErrorState, Icon, Input, Reveal, Skeleton } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
@@ -19,6 +20,7 @@ export default function SettingsPage() {
   const [pm, setPm] = useState("");
   const [ph, setPh] = useState("");
   const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (data) { setPm(String(data.default_per_minute ?? "")); setPh(String(data.default_per_hour ?? "")); }
@@ -36,11 +38,12 @@ export default function SettingsPage() {
 
   async function save(e: FormEvent) {
     e.preventDefault();
-    if (errs.pm || errs.ph) return;
+    if (errs.pm || errs.ph || !dirty) return;
     setBusy(true);
     try {
       await api("/settings", { method: "PUT", json: { default_per_minute: parse(pm), default_per_hour: parse(ph) } });
       toast("success", "Default limits updated");
+      setSaved(true); setTimeout(() => setSaved(false), 1800);
       reload();
     } catch (err) { toast("error", (err as Error).message); } finally { setBusy(false); }
   }
@@ -64,8 +67,18 @@ export default function SettingsPage() {
                   Existing keys keep their current limits; edit a key to change it. These defaults live in the running server and reset on restart. To make them permanent, set <code className="font-mono">default_per_minute</code> in <code className="font-mono">KeyGate(…)</code>.
                 </p>
                 <div className="flex items-center justify-end gap-3 border-t border-line px-5 py-4 sm:px-6">
-                  {dirty && <span role="status" className="mr-auto text-[13px] text-muted">Unsaved changes</span>}
-                  <Button type="submit" variant="primary" loading={busy} disabled={!dirty}>Save changes</Button>
+                  <span role="status" className="mr-auto text-[13px] text-muted">
+                    <AnimatePresence initial={false}>
+                      {dirty && <motion.span key="d" className="inline-block" initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>Unsaved changes</motion.span>}
+                    </AnimatePresence>
+                  </span>
+                  <Button type="submit" variant="primary" loading={busy} disabled={!dirty && !saved}>
+                    <AnimatePresence mode="wait" initial={false}>
+                      <motion.span key={saved ? "s" : "n"} className="inline-flex items-center gap-1.5" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }}>
+                        {saved ? <>{Icon.check} Saved</> : "Save changes"}
+                      </motion.span>
+                    </AnimatePresence>
+                  </Button>
                 </div>
               </form>
             )}
