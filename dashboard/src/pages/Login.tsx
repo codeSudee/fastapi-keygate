@@ -1,6 +1,5 @@
-import { useState, type FormEvent } from "react";
-import { AnimatePresence, motion, useMotionTemplate, useMotionValue, useReducedMotion, useSpring, type Variants } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState, type FormEvent } from "react";
+import { AnimatePresence, motion, useAnimationControls, useMotionTemplate, useMotionValue, useReducedMotion, useSpring, type Variants } from "framer-motion";
 import { useAuth } from "@/lib/auth";
 import { Logo } from "@/components/Shell";
 import { Badge, Button, EASE, Input, Magnetic } from "@/components/ui";
@@ -17,6 +16,27 @@ const item: Variants = {
   hidden: { opacity: 0, y: 16 },
   show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE } },
 };
+
+const check: Variants = {
+  hidden: { pathLength: 0 },
+  show: { pathLength: 1, transition: { duration: 0.55, ease: EASE, delay: 0.35 } },
+};
+
+/** Slow drifting glows behind the layout. Transform-only, gradient (no blur filter), off when reduced motion is on. */
+function Orbs() {
+  const reduce = useReducedMotion();
+  if (reduce) return null;
+  const orb = "pointer-events-none absolute rounded-full will-change-transform";
+  const bg = (pos: string) => `radial-gradient(circle at ${pos}, color-mix(in srgb, var(--accent) 10%, transparent), transparent 65%)`;
+  return (
+    <>
+      <motion.div aria-hidden className={`${orb} -left-40 -top-40 size-[520px]`} style={{ background: bg("50% 50%") }}
+        animate={{ x: [0, 90, 20, 0], y: [0, 50, 110, 0] }} transition={{ duration: 28, ease: "easeInOut", repeat: Infinity }} />
+      <motion.div aria-hidden className={`${orb} -bottom-48 -right-32 size-[600px]`} style={{ background: bg("50% 50%") }}
+        animate={{ x: [0, -80, -20, 0], y: [0, -70, -20, 0] }} transition={{ duration: 34, ease: "easeInOut", repeat: Infinity }} />
+    </>
+  );
+}
 
 const DEMO_LIMIT = 5;
 type Hit = { id: number; ok: boolean };
@@ -118,12 +138,17 @@ function ExampleKey() {
 
 export default function Login() {
   const { login } = useAuth();
-  const nav = useNavigate();
   const [secret, setSecret] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [shake, setShake] = useState(0);
+  const [done, setDone] = useState(false);
   const reduce = useReducedMotion();
+  const logoCtl = useAnimationControls();
+  useEffect(() => {
+    if (reduce || !secret) return;
+    logoCtl.start({ scale: [1, 1.1, 1], rotate: [0, -6, 0], transition: { duration: 0.35, ease: EASE } });
+  }, [secret.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const mx = useMotionValue(-400);
   const my = useMotionValue(-400);
   const glow = useMotionTemplate`radial-gradient(520px circle at ${mx}px ${my}px, color-mix(in srgb, var(--accent) 13%, transparent), transparent 70%)`;
@@ -134,8 +159,10 @@ export default function Login() {
     if (!secret.trim()) { setError("Enter your admin secret to continue."); setShake((n) => n + 1); return; }
     setBusy(true); setError("");
     try {
-      await login(secret);
-      nav("/", { replace: true });
+      await login(secret, async () => {
+        setDone(true);
+        if (!reduce) await new Promise((res) => setTimeout(res, 320));
+      });
     } catch (err) {
       setError((err as Error).message);
       setShake((n) => n + 1);
@@ -150,6 +177,7 @@ export default function Login() {
       onPointerMove={(e) => { if (!reduce && e.pointerType === "mouse") { mx.set(e.clientX); my.set(e.clientY); } }}
     >
       {/* Cursor spotlight, plus a brighter copy of the grid revealed around the pointer */}
+      <Orbs />
       <motion.div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: glow }} />
       <motion.div
         aria-hidden className="pointer-events-none absolute inset-0 opacity-90"
@@ -160,12 +188,16 @@ export default function Login() {
       <div className="relative mx-auto grid min-h-dvh w-full max-w-6xl items-center gap-12 px-4 py-10 sm:px-8 lg:grid-cols-[1.15fr_1fr] lg:gap-16 lg:px-10">
         {/* Sign-in: first on phones and tablets, right column on desktop */}
         <motion.main
-          initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.8, ease: EASE }}
+          initial={{ opacity: 0, y: 24, scale: 0.98 }}
+          animate={done ? { opacity: 0, y: -8, scale: 0.97 } : { opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: done ? 0.3 : 0.8, ease: EASE }}
           className="order-1 mx-auto w-full max-w-[400px] lg:order-2 lg:max-w-[420px]"
         >
           <div className="mb-8 flex flex-col items-center text-center">
             <motion.div initial={{ scale: 0.6, rotate: -12, opacity: 0 }} animate={{ scale: 1, rotate: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.15 }}>
-              <Logo className="size-12 drop-shadow-[0_8px_24px_color-mix(in_srgb,var(--accent)_45%,transparent)]" />
+              <motion.div animate={logoCtl}>
+                <Logo className="size-12 drop-shadow-[0_8px_24px_color-mix(in_srgb,var(--accent)_45%,transparent)]" />
+              </motion.div>
             </motion.div>
             <h1 className="mt-6 text-balance text-2xl font-semibold tracking-tight">Sign in to Keygate</h1>
             <p className="mt-2 text-[15px] text-muted">Enter your admin secret to open the dashboard.</p>
@@ -206,7 +238,7 @@ export default function Login() {
             {FEATURES.map((f) => (
               <motion.li key={f.title} variants={item} whileHover={{ x: 3 }} transition={{ type: "spring", stiffness: 400, damping: 28 }} className="flex gap-3">
                 <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] text-accent" aria-hidden>
-                  <svg viewBox="0 0 20 20" className="size-3" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8" /></svg>
+                  <svg viewBox="0 0 20 20" className="size-3" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><motion.path d="M4.5 10.5l3.5 3.5 7.5-8" variants={reduce ? undefined : check} /></svg>
                 </span>
                 <div>
                   <h3 className="text-sm font-medium">{f.title}</h3>

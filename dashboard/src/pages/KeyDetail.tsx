@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { PageHeader } from "@/components/Shell";
 import { ChartLegend, RateMeter, UsageChart } from "@/components/charts";
 import { useKeyManager } from "@/components/KeyManager";
@@ -25,6 +25,7 @@ function Meta({ label, children }: { label: string; children: React.ReactNode })
 
 export default function KeyDetail() {
   const { id } = useParams();
+  const fromList = (useLocation().state as { label?: string } | null)?.label;
   const [range, setRange] = useUrlParam<Range>("range", "24h", RANGE_VALUES);
   const { data: d, error, loading, reload } = useApi<KeyUsage>(`/keys/${id}/usage?range=${range}`, { refreshMs: 15_000 });
   const mgr = useKeyManager({ onChange: reload });
@@ -37,7 +38,8 @@ export default function KeyDetail() {
     <>
       <PageHeader
         back={<Link to="/keys" className="-ml-1 inline-flex items-center gap-1.5 text-[13px] text-muted transition-colors hover:text-fg">{Icon.back} API keys</Link>}
-        title={k ? keyLabel(k) : "Loading…"}
+        title={k ? keyLabel(k) : fromList ?? "Loading…"}
+        titleLayoutId={`key-title-${id}`}
         subtitle={k && <span className="inline-flex flex-wrap items-center gap-2"><span className="font-mono text-sm">kg_{k.prefix}…</span><StateBadge state={k.state} /></span>}
         actions={k && (
           <>

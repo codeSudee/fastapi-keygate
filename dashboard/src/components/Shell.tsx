@@ -68,7 +68,7 @@ export function Shell() {
 
       <main id="main" className="md:pl-[72px] lg:pl-60">
         <div className="mx-auto w-full max-w-[1180px] px-4 pb-28 pt-8 sm:px-6 md:pb-16 md:pt-10 lg:px-10">
-          <motion.div key={pathname} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: EASE }}>
+          <motion.div key={pathname.startsWith("/keys") ? "/keys" : pathname} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: EASE }}>
             <Suspense fallback={<PageSkeleton />}><Outlet /></Suspense>
           </motion.div>
         </div>
@@ -92,13 +92,15 @@ export function Shell() {
 }
 
 /** Page heading with the same entrance on every route. */
-export function PageHeader({ title, subtitle, actions, back }: { title: string; subtitle?: React.ReactNode; actions?: React.ReactNode; back?: React.ReactNode }) {
+export function PageHeader({ title, subtitle, actions, back, titleLayoutId }: { title: string; subtitle?: React.ReactNode; actions?: React.ReactNode; back?: React.ReactNode; titleLayoutId?: string }) {
   return (
     <header className="mb-8 space-y-3">
       {back}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-balance text-2xl font-semibold tracking-tight sm:text-[28px]">{title}</h1>
+          {titleLayoutId
+            ? <motion.h1 layoutId={titleLayoutId} transition={{ type: "spring", stiffness: 380, damping: 36 }} className="text-balance text-2xl font-semibold tracking-tight sm:text-[28px]">{title}</motion.h1>
+            : <h1 className="text-balance text-2xl font-semibold tracking-tight sm:text-[28px]">{title}</h1>}
           {subtitle && <motion.p initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: EASE, delay: 0.08 }} className="mt-1.5 text-[15px] text-muted">{subtitle}</motion.p>}
         </div>
         {actions && <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: EASE, delay: 0.14 }} className="flex flex-wrap items-center gap-2">{actions}</motion.div>}

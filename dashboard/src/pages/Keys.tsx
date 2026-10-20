@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/Shell";
 import { Sparkline, RateMeter } from "@/components/charts";
@@ -15,30 +16,56 @@ const RANGE_VALUES = RANGES.map((r) => r.value);
 const FILTER_VALUES = ["active", "all"] as const;
 
 export function RowMenu({ items }: { items: { label: string; onClick: () => void; danger?: boolean; hidden?: boolean }[] }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
+  const btn = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  const open = pos !== null;
+  const close = () => setPos(null);
+
+  const toggle = () => {
+    if (open) return close();
+    const r = btn.current!.getBoundingClientRect();
+    const right = window.innerWidth - r.right;
+    // Flip upward when there isn't room below the button.
+    setPos(window.innerHeight - r.bottom < 200 ? { bottom: window.innerHeight - r.top + 4, right } : { top: r.bottom + 4, right });
+  };
+
   useEffect(() => {
     if (!open) return;
-    const down = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
-    const key = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const down = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!menu.current?.contains(t) && !btn.current?.contains(t)) close();
+    };
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
     document.addEventListener("mousedown", down); document.addEventListener("keydown", key);
-    return () => { document.removeEventListener("mousedown", down); document.removeEventListener("keydown", key); };
+    window.addEventListener("scroll", close, true); window.addEventListener("resize", close);
+    return () => {
+      document.removeEventListener("mousedown", down); document.removeEventListener("keydown", key);
+      window.removeEventListener("scroll", close, true); window.removeEventListener("resize", close);
+    };
   }, [open]);
+
   return (
-    <div ref={ref} className="relative" onClick={(e) => e.stopPropagation()}>
-      <button aria-label="Key actions" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="grid size-8 place-items-center rounded-lg text-muted transition-colors hover:bg-raised hover:text-fg">{Icon.more}</button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            role="menu" initial={{ opacity: 0, y: -4, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.1 } }} transition={{ duration: 0.16, ease: EASE }}
-            className="absolute right-0 top-full z-20 mt-1 min-w-40 origin-top-right rounded-xl border border-line-strong bg-raised p-1 shadow-pop"
-          >
-            {items.filter((i) => !i.hidden).map((i) => (
-              <button key={i.label} role="menuitem" onClick={() => { setOpen(false); i.onClick(); }} className={`flex h-8 w-full items-center rounded-lg px-2.5 text-left text-[13px] transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_8%,transparent)] ${i.danger ? "text-bad" : ""}`}>{i.label}</button>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <div onClick={(e) => e.stopPropagation()}>
+      <button ref={btn} aria-label="Key actions" aria-haspopup="menu" aria-expanded={open} onClick={toggle} className="grid size-8 place-items-center rounded-lg text-muted transition-colors hover:bg-raised hover:text-fg">{Icon.more}</button>
+      {/* Portaled to <body>: the list card is overflow-hidden and would clip the menu on the last rows. */}
+      {createPortal(
+        <AnimatePresence>
+          {pos && (
+            <motion.div
+              ref={menu} role="menu" style={{ position: "fixed", top: pos.top, bottom: pos.bottom, right: pos.right }}
+              initial={{ opacity: 0, y: pos.bottom !== undefined ? 4 : -4, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.1 } }} transition={{ duration: 0.16, ease: EASE }}
+              className={`z-50 min-w-40 rounded-xl border border-line-strong bg-raised p-1 shadow-pop ${pos.bottom !== undefined ? "origin-bottom-right" : "origin-top-right"}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {items.filter((i) => !i.hidden).map((i) => (
+                <button key={i.label} role="menuitem" onClick={() => { close(); i.onClick(); }} className={`flex h-8 w-full items-center rounded-lg px-2.5 text-left text-[13px] transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_8%,transparent)] ${i.danger ? "text-bad" : ""}`}>{i.label}</button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
     </div>
   );
 }
@@ -57,7 +84,7 @@ function Row({ k, range, onOpen, mgr, index }: { k: KeyRow; range: Range; onOpen
       >
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
-            <Link to={`/keys/${k.id}`} onClick={(e) => e.stopPropagation()} className="truncate text-sm font-medium hover:underline">{keyLabel(k)}</Link>
+            <Link to={`/keys/${k.id}`} state={{ label: keyLabel(k) }} onClick={(e) => e.stopPropagation()} className="truncate text-sm font-medium hover:underline"><motion.span layoutId={`key-title-${k.id}`} transition={{ type: "spring", stiffness: 380, damping: 36 }} className="block truncate">{keyLabel(k)}</motion.span></Link>
             <StateBadge state={k.state} />
           </div>
           <p className="mt-1 truncate font-mono text-xs text-faint">kg_{k.prefix}…  <span className="font-sans">· {k.owner_id}</span></p>
@@ -101,6 +128,8 @@ export default function Keys() {
   const [filter, setFilter] = useUrlParam<"active" | "all">("filter", "active", FILTER_VALUES);
   const { data, error, loading, reload } = useApi<KeysResponse>(`/keys?range=${range}`, { refreshMs: 30_000 });
   const mgr = useKeyManager({ onChange: reload, defaults: data?.defaults });
+  // Load the detail chunk up front so opening a key never suspends, which would break the shared-title morph.
+  useEffect(() => { void import("./KeyDetail"); }, []);
 
   const keys = data?.keys.filter((k) => filter === "all" || k.state !== "revoked") ?? [];
 
@@ -133,7 +162,7 @@ export default function Keys() {
           ) : (
             <motion.ul animate={{ opacity: loading ? 0.6 : 1 }} className="divide-y divide-line">
               <AnimatePresence>
-                {keys.map((k, i) => <Row key={k.id} k={k} index={i} range={range} mgr={mgr} onOpen={() => nav(`/keys/${k.id}`)} />)}
+                {keys.map((k, i) => <Row key={k.id} k={k} index={i} range={range} mgr={mgr} onOpen={() => nav(`/keys/${k.id}`, { state: { label: keyLabel(k) } })} />)}
               </AnimatePresence>
             </motion.ul>
           )}
