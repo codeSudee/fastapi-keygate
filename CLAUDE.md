@@ -27,7 +27,14 @@ Design is in `docs/PLANS.md`. User decisions so far:
 - Next: (2) pricing/billing page in the dashboard (needs prices from the user), (3) Stripe test mode.
 - Grace period on past-due/canceled plans: undecided. Leaning: block new keys immediately, never auto-revoke existing keys, decide any grace period at the Stripe step.
 
-Check `git log` and `git status` for how far step 0 got before assuming anything.
+## Where we left off (2026-10-21) / next step
+- Latest commit: `c93a880`. 78 tests pass, 3 skipped. Steps (0) and (1) are done and pushed.
+- **Blocked on the user:** prices, currency and billing period (nothing is priced; `Plan.price` is None). Also the past-due/canceled grace-period decision. Ask for these first.
+- Then: (2) pricing/billing page in the dashboard (first legit use of the conversion-psychology skill, honest framing only), (3) Stripe test mode.
+- Before step 3, raise the hosted-model gap (developer accounts/login, how usage reaches the user's service) with the user; do not build billing on top of it silently.
+- Small open items: the sign-in card repeats a heading the left side already says; sign-in page only checked down to ~900px wide, not phone width; blank first paint (~1s) before a page's chunk and data load.
+- Dev loop: `python examples/dashboard_demo.py` (secret `demo-secret`) serves the built UI at `localhost:8000/keygate/dashboard`; rebuild UI with `cd dashboard && npm run build`. Stop the demo with `pkill -f dashboard_demo.py`.
+- Always run `git log --oneline -5` and `git status` first to confirm this file is current.
 
 ## Known gaps and honest risks
 - Plans: count-then-insert race can exceed `max_keys` by one; an unknown stored plan id silently falls back to the default plan; the older `/keygate/keys` admin route returns 402 but is untested.

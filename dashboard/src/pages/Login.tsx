@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { motion, type Variants } from "framer-motion";
+import { AnimatePresence, motion, useMotionTemplate, useMotionValue, useReducedMotion, type Variants } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { Logo } from "@/components/Shell";
@@ -18,39 +18,87 @@ const item: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE } },
 };
 
-/** Static illustration of a key row, built from the real UI's look. Values are made up. */
+const DEMO_LIMIT = 5;
+type Hit = { id: number; ok: boolean };
+
+/** Interactive illustration of a key hitting its rate limit. Nothing is sent anywhere. */
 function ExampleKey() {
+  const [hits, setHits] = useState<Hit[]>([]);
+  const [n, setN] = useState(0);
+  const [okCount, setOkCount] = useState(0);
+  const press = () => {
+    const ok = okCount < DEMO_LIMIT;
+    setHits((h) => [...h, { id: n, ok }].slice(-12));
+    setN((v) => v + 1);
+    if (ok) setOkCount((c) => c + 1);
+  };
+  const reset = () => { setHits([]); setOkCount(0); };
+  const full = okCount >= DEMO_LIMIT;
+  const left = DEMO_LIMIT - okCount;
+  const last = hits[hits.length - 1];
+  const pct = okCount / DEMO_LIMIT;
+  const blocked = last && !last.ok;
+
   return (
-    <div className="rounded-2xl border border-line bg-panel p-5 shadow-card" aria-hidden>
+    <div className="rounded-2xl border border-line bg-panel p-5 shadow-card">
       <div className="mb-4 flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wider text-faint">Example</span>
-        <Badge dot tone="ok">Active</Badge>
+        <span className="text-xs font-medium uppercase tracking-wider text-faint">Interactive example</span>
+        <Badge dot tone={full ? "warn" : "ok"}>{full ? "At limit" : "Active"}</Badge>
       </div>
+
       <div className="flex items-end justify-between gap-6">
         <div className="min-w-0">
           <p className="text-sm font-medium">Production</p>
-          <p className="mt-1 font-mono text-xs text-faint">kg_8f45fd65…</p>
+          <p className="mt-1 font-mono text-xs text-faint">kg_8f45fd65… · 5 per minute</p>
         </div>
-        <svg viewBox="0 0 100 28" className="h-8 w-28 shrink-0 overflow-visible">
-          <motion.path
-            d="M0 22 L10 17 L20 20 L30 10 L40 14 L50 7 L60 13 L70 5 L80 10 L90 3 L100 8"
-            fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke"
-            initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1.4, ease: EASE, delay: 0.7 }}
-          />
-        </svg>
+        <div className="flex h-8 items-end gap-1" aria-hidden>
+          {Array.from({ length: 12 }, (_, i) => {
+            const h = hits[hits.length - 12 + i];
+            return (
+              <motion.span
+                key={h ? h.id : `e${i}`}
+                initial={h ? { scaleY: 0.2, opacity: 0 } : false}
+                animate={{ scaleY: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 500, damping: 28 }}
+                className="h-full w-1.5 origin-bottom rounded-sm"
+                style={{ background: h ? (h.ok ? "var(--accent)" : "var(--warn)") : "var(--raised)" }}
+              />
+            );
+          })}
+        </div>
       </div>
+
       <div className="mt-5">
         <div className="mb-1.5 flex justify-between text-[13px]">
           <span className="text-muted">Per minute</span>
-          <span className="tabular text-fg">388 <span className="text-faint">/ 600 left</span></span>
+          <span className="tabular text-fg">{left} <span className="text-faint">/ {DEMO_LIMIT} left</span></span>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-raised">
           <motion.div
-            className="h-full w-full rounded-full bg-accent" style={{ originX: 0 }}
-            initial={{ scaleX: 0 }} animate={{ scaleX: 0.35 }} transition={{ duration: 1.1, ease: EASE, delay: 0.8 }}
+            className="h-full w-full rounded-full" style={{ originX: 0, background: full ? "var(--bad)" : "var(--accent)" }}
+            animate={{ scaleX: pct }} transition={{ type: "spring", stiffness: 220, damping: 26 }}
           />
         </div>
       </div>
+
+      <div className="mt-5 space-y-3">
+        <p className="font-mono text-xs" role="status" aria-live="polite">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.span
+              key={last ? last.id : "idle"}
+              initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
+              className={`inline-block ${blocked ? "text-warn" : last ? "text-ok" : "text-faint"}`}
+            >
+              {!last ? "GET /hello" : blocked ? "GET /hello → 429 Too Many Requests" : "GET /hello → 200 OK"}
+            </motion.span>
+          </AnimatePresence>
+        </p>
+        <div className="flex justify-end gap-2">
+          {hits.length > 0 && <Button size="sm" variant="ghost" onClick={reset}>Reset</Button>}
+          <Button size="sm" variant="secondary" onClick={press}>Send request</Button>
+        </div>
+      </div>
+      <p className="mt-3 text-xs text-faint">A simulation: nothing is sent. Real keys return a 429 like this once the limit is used up.</p>
     </div>
   );
 }
@@ -62,6 +110,11 @@ export default function Login() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [shake, setShake] = useState(0);
+  const reduce = useReducedMotion();
+  const mx = useMotionValue(-400);
+  const my = useMotionValue(-400);
+  const glow = useMotionTemplate`radial-gradient(520px circle at ${mx}px ${my}px, color-mix(in srgb, var(--accent) 13%, transparent), transparent 70%)`;
+  const gridMask = useMotionTemplate`radial-gradient(260px circle at ${mx}px ${my}px, black, transparent)`;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -79,7 +132,16 @@ export default function Login() {
   }
 
   return (
-    <div className="ambient relative min-h-dvh overflow-hidden">
+    <div
+      className="ambient relative min-h-dvh overflow-hidden"
+      onPointerMove={(e) => { if (!reduce && e.pointerType === "mouse") { mx.set(e.clientX); my.set(e.clientY); } }}
+    >
+      {/* Cursor spotlight, plus a brighter copy of the grid revealed around the pointer */}
+      <motion.div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: glow }} />
+      <motion.div
+        aria-hidden className="pointer-events-none absolute inset-0 opacity-90"
+        style={{ backgroundImage: "linear-gradient(var(--line-strong) 1px,transparent 1px),linear-gradient(90deg,var(--line-strong) 1px,transparent 1px)", backgroundSize: "44px 44px", maskImage: gridMask, WebkitMaskImage: gridMask }}
+      />
       <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.35] [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)]" style={{ backgroundImage: "linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px)", backgroundSize: "44px 44px" }} />
 
       <div className="relative mx-auto grid min-h-dvh w-full max-w-6xl items-center gap-12 px-4 py-10 sm:px-8 lg:grid-cols-[1.15fr_1fr] lg:gap-16 lg:px-10">
@@ -141,7 +203,7 @@ export default function Login() {
             ))}
           </ul>
 
-          <motion.div variants={item} className="mt-10 hidden max-w-sm sm:block">
+          <motion.div variants={item} className="mt-10 max-w-sm">
             <ExampleKey />
           </motion.div>
         </motion.section>
