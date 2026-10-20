@@ -92,34 +92,80 @@ else{
   requestAnimationFrame(function(){requestAnimationFrame(function(){h.classList.add('go')})});
 })();
 
-/* terminal: typed session, plays once in view; Replay restarts it */
+/* how-it-works steps: build in one after another */
 (function(){
-  var code=$('#term'),rb=$('#replay');if(!code||!rb||rm)return;
-  rb.hidden=false;
-  var lines=Array.prototype.slice.call(code.querySelectorAll('.ln')),tys=code.querySelectorAll('.ty'),
-      full=Array.prototype.map.call(tys,function(t){return t.textContent}),run=0;
-  function restore(){tys.forEach(function(t,k){t.textContent=full[k];t.classList.remove('typing')})}
-  function reset(){code.classList.add('term-on');lines.forEach(function(l){l.classList.remove('on')});restore()}
-  function done(){code.classList.remove('term-on');code.removeAttribute('aria-busy');restore()}
-  function wait(ms){return new Promise(function(res){setTimeout(res,ms)})}
-  async function play(){
-    var id=++run;reset();code.setAttribute('aria-busy','true');await wait(250);
-    for(var i=0;i<lines.length;i++){
-      if(id!==run)return;
-      var l=lines[i],t=l.querySelector('.ty');
-      if(t){
-        var s=t.textContent;t.textContent='';t.classList.add('typing');l.classList.add('on');
-        for(var c=1;c<=s.length;c++){await wait(s.length>40?9:22);if(id!==run)return;t.textContent=s.slice(0,c)}
-        t.classList.remove('typing');await wait(380);
-      }else{l.classList.add('on');await wait(l.classList.contains('c')?40:110)}
-    }
-    if(id===run)done();
+  var st=$('.steps');if(!st||rm||!r.classList.contains('anim')||!('IntersectionObserver' in window))return;
+  var so=new IntersectionObserver(function(es){if(es[0].isIntersecting){so.disconnect();st.classList.add('on')}},{threshold:.4});
+  so.observe(st);
+})();
+
+/* section headlines: words brighten as they scroll into view */
+(function(){
+  if(rm||!r.classList.contains('anim'))return;
+  var hs=[];
+  document.querySelectorAll('section>.wrap>h2').forEach(function(h){
+    var ws=[];
+    Array.prototype.slice.call(h.childNodes).forEach(function(nd){
+      if(nd.nodeType!==3)return;
+      var f=document.createDocumentFragment();
+      nd.textContent.split(/(\s+)/).forEach(function(p){
+        if(!p)return;if(/^\s+$/.test(p)){f.appendChild(document.createTextNode(' '));return}
+        var s=document.createElement('span');s.className='sw';s.textContent=p;ws.push(s);f.appendChild(s);
+      });
+      h.replaceChild(f,nd);
+    });
+    if(ws.length)hs.push({h:h,ws:ws});
+  });
+  var tick=false;
+  function upd(){
+    tick=false;var vh=innerHeight;
+    hs.forEach(function(o){
+      var y=o.h.getBoundingClientRect().top,p=Math.max(0,Math.min(1,(vh*.92-y)/(vh*.4))),n=o.ws.length;
+      o.ws.forEach(function(w,i){w.style.setProperty('--o',(.25+.75*Math.max(0,Math.min(1,p*(n+1)-i))).toFixed(3))});
+    });
   }
-  rb.addEventListener('click',play);
-  if(!('IntersectionObserver' in window))return;
-  reset();
-  var to=new IntersectionObserver(function(es){if(es[0].isIntersecting){to.disconnect();play()}},{threshold:.4});
-  to.observe(code.closest('.code'));
+  addEventListener('scroll',function(){if(!tick){tick=true;requestAnimationFrame(upd)}},{passive:true});
+  addEventListener('resize',upd);upd();
+})();
+
+/* terminal: typing is scrubbed by scroll, so it fills in as you scroll past and rewinds going back up */
+(function(){
+  var code=$('#term');if(!code||rm)return;
+  var box=code.closest('.code'),lines=Array.prototype.slice.call(code.querySelectorAll('.ln')),
+      tys=code.querySelectorAll('.ty'),full=Array.prototype.map.call(tys,function(t){return t.textContent});
+  var cost=[],total=0;
+  lines.forEach(function(l){
+    var t=l.querySelector('.ty'),c=t?t.textContent.length+7:(l.classList.contains('c')?2:5);
+    cost.push(c);total+=c;
+  });
+  code.classList.add('term-on');
+  var cur=0,tgt=0,shown=-1,raf=0;
+  function render(u){
+    var key=Math.floor(u*2);if(key===shown)return;shown=key;
+    var acc=0;
+    lines.forEach(function(l,i){
+      var c=cost[i],t=l.querySelector('.ty'),d=u-acc,k=t?Array.prototype.indexOf.call(tys,t):-1;
+      l.classList.toggle('on',d>0);
+      if(t){
+        var n=Math.max(0,Math.min(full[k].length,Math.floor(d)));
+        t.textContent=full[k].slice(0,n);t.classList.toggle('typing',d>0&&d<c);
+      }
+      acc+=c;
+    });
+  }
+  function target(){
+    var q=box.getBoundingClientRect(),vh=innerHeight,p=(vh*.85-q.top)/(vh*.65);
+    tgt=Math.max(0,Math.min(1,p))*total;
+  }
+  function loop(){
+    raf=0;cur+=(tgt-cur)*.14;
+    if(Math.abs(tgt-cur)<.05)cur=tgt;
+    render(cur);
+    if(cur!==tgt)raf=requestAnimationFrame(loop);
+  }
+  function kick(){target();if(!raf)raf=requestAnimationFrame(loop)}
+  addEventListener('scroll',kick,{passive:true});addEventListener('resize',kick);
+  target();cur=tgt;render(cur);
 })();
 
 /* pointer effects (fine pointers only) */

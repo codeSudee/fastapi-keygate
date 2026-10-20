@@ -53,6 +53,13 @@
  </div>
 </div></div>
 
+<div class="mq wrap" role="group" aria-label="Built on and included">
+ <div class="mq-t">
+  <ul><li>FastAPI</li><li>SQLAlchemy</li><li>SQLite by default</li><li>Redis limits store</li><li>Sync and async</li><li>SHA-256 hashed keys</li><li>Web dashboard</li><li>CLI included</li><li>MIT licensed</li></ul>
+  <ul aria-hidden="true"><li>FastAPI</li><li>SQLAlchemy</li><li>SQLite by default</li><li>Redis limits store</li><li>Sync and async</li><li>SHA-256 hashed keys</li><li>Web dashboard</li><li>CLI included</li><li>MIT licensed</li></ul>
+ </div>
+</div>
+
 <section id="quickstart"><div class="wrap">
  <h2 class="rv">The whole quickstart</h2>
  <p class="sub rv">Protect a route, mint a key, and the limit is enforced per key. You <code>import keygate</code>; the PyPI package is <code>fastapi-keygate</code>.</p>
@@ -70,7 +77,7 @@ def hello(key: ApiKey = Depends(gate.require)):
 
 if not gate.list_keys():  # demo only: mint a first key
     print("Your API key:", gate.create_key("demo-tenant", per_minute=5).key)</code></pre></div>
-  <div class="code rv"><div class="bar"><span>terminal</span><button class="copy" id="replay" type="button" hidden>Replay</button></div>
+  <div class="code rv"><div class="bar"><span>terminal</span></div>
 <pre><code id="term"><span class="ln"><span class="f">$</span> <span class="ty">uvicorn app:app</span></span>
 <span class="ln">Your API key: kg_...</span>
 <span class="ln c">INFO:     Uvicorn running on http://127.0.0.1:8000</span>
