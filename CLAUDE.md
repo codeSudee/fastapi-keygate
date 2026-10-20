@@ -32,7 +32,7 @@ Design is in `docs/PLANS.md`. User decisions so far:
 - Run `git log --oneline -3`. 78 tests pass, 3 skipped. Steps (0), (1), (2) done. Also shipped: URL-synced ranges/filters, skeleton fallback, unsaved-changes cue on Settings.
 - Nothing is blocked on the user. Next only if demand shows up: enforce `billing_status` with the grace policy; a hosted offering would need tenancy design first.
 - Before step 3, raise the hosted-model gap (developer accounts/login, how usage reaches the user's service) with the user; do not build billing on top of it silently.
-- Small open items: phone width never verified (browser window can't go below 1400px); in-app sidebar navigation still discards unsaved Settings edits silently (needs a data router or a confirm in Shell).
+- Small open items: phone width verified 2026-10-22 at 390px and 360px via same-origin iframes (no horizontal overflow, row menu flips upward); not tested on real device emulation; in-app sidebar navigation still discards unsaved Settings edits silently (needs a data router or a confirm in Shell).
 - Dev loop: `python examples/dashboard_demo.py` (secret `demo-secret`) serves the built UI at `localhost:8000/keygate/dashboard`; rebuild UI with `cd dashboard && npm run build`. Stop the demo with `pkill -f dashboard_demo.py`.
 - Always run `git log --oneline -5` and `git status` first to confirm this file is current.
 
