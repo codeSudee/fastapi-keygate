@@ -9,6 +9,10 @@ Status: **step 0 implemented for the sync `KeyGate` only** (see "Implemented" be
 - **Deferred:** owner-level rate windows, per-plan retention (`prune_by_plan`, range clamping), the async gate, pricing UI, billing. Request-time clamping is implemented: `require` applies the plan's per-key caps on every request, so a downgrade limits existing keys immediately (one extra owner-row query per request when plans are on).
 - Known gap: the key-count check and insert are not atomic, so two simultaneous creates can exceed `max_keys` by one.
 
+## Decision (2026-10-22)
+
+Reading **B** is the direction: Keygate stays self-hosted and plans serve the adopter's own customers. Hosted multi-tenant billing (reading A) is deferred until there is demand. Past-due grace is ~14 days, then new keys are blocked and the plan falls back to default; existing keys are never auto-revoked. Not yet implemented.
+
 ## 0. Assumption to confirm
 
 A plan attaches to an **owner** (`owner_id`, already on every key). That supports both readings of "payable":
