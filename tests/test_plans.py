@@ -101,8 +101,8 @@ def test_set_plan_validates_and_stores_billing_fields():
         assert (row.billing_ref, row.billing_status) == ("cus_1", "active")
 
 
-def test_plan_price_is_none_by_default():
-    assert all(p.price is None for p in DEFAULT_PLANS.values())
+def test_default_plan_prices():
+    assert [p.price for p in DEFAULT_PLANS.values()] == ["$0", "$12", "$39"]
     assert isinstance(DEFAULT_PLANS["free"], Plan)
 
 

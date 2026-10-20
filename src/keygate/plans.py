@@ -17,14 +17,14 @@ class Plan:
     key_per_hour: Optional[int]
     max_scopes: Optional[int]
     wildcard_scope: bool
-    price: Optional[str] = None
+    price: Optional[str] = None  # display only, USD per month; billing is not wired up
 
 
 # Proposed numbers, see docs/PLANS.md. Dict order is the upgrade path.
 DEFAULT_PLANS: Dict[str, Plan] = {
-    "free": Plan("free", "Free", 2, 60, 1_000, 3, False),
-    "pro": Plan("pro", "Pro", 10, 600, 20_000, 20, False),
-    "team": Plan("team", "Team", 50, 3_000, 100_000, None, True),
+    "free": Plan("free", "Free", 2, 60, 1_000, 3, False, "$0"),
+    "pro": Plan("pro", "Pro", 10, 600, 20_000, 20, False, "$12"),
+    "team": Plan("team", "Team", 50, 3_000, 100_000, None, True, "$39"),
 }
 
 

@@ -30,7 +30,7 @@ The data model is the same for both. What differs is who the dashboard login rep
 | Usage history kept | 7 days | 30 days | 90 days |
 | Scopes per key | 3 | 20 | unlimited, `*` allowed |
 | Key rotation, expiry, revoke | yes | yes | yes |
-| Price | TBD | TBD | TBD |
+| Price (USD/month) | $0 | $12 | $39 |
 
 Rationale (proposals):
 - **Free: 2 keys.** Enough for one prod and one staging key, which is what a trial needs.

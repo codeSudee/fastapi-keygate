@@ -7,6 +7,7 @@ import Login from "@/pages/Login";
 const Overview = lazy(() => import("@/pages/Overview"));
 const Keys = lazy(() => import("@/pages/Keys"));
 const KeyDetail = lazy(() => import("@/pages/KeyDetail"));
+const PlansPage = lazy(() => import("@/pages/Plans"));
 const SettingsPage = lazy(() => import("@/pages/Settings"));
 
 export default function App() {
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/" element={<Overview />} />
         <Route path="/keys" element={<Keys />} />
         <Route path="/keys/:id" element={<KeyDetail />} />
+        <Route path="/plans" element={<PlansPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

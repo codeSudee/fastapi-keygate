@@ -1,13 +1,16 @@
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
+import { useApi } from "@/lib/useApi";
+import type { PlansResponse } from "@/lib/types";
 import { cx, EASE, Icon, PageSkeleton } from "./ui";
 
 const NAV = [
   { to: "/", label: "Overview", icon: Icon.overview, end: true },
   { to: "/keys", label: "API keys", icon: Icon.key, end: false },
+  { to: "/plans", label: "Plans", icon: Icon.plans, end: false, needsPlans: true },
   { to: "/settings", label: "Settings", icon: Icon.settings, end: false },
 ];
 
@@ -20,7 +23,7 @@ export function Logo({ className }: { className?: string }) {
   );
 }
 
-function SideLink({ to, label, icon, end }: (typeof NAV)[number]) {
+function SideLink({ to, label, icon, end }: { to: string; label: string; icon: ReactNode; end: boolean }) {
   return (
     <NavLink to={to} end={end} title={label} className="group relative flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted transition-colors hover:text-fg aria-[current=page]:text-fg md:justify-center lg:justify-start">
       {({ isActive }) => (
@@ -40,6 +43,8 @@ export function Shell() {
   const { logout } = useAuth();
   const { dark, toggle } = useTheme();
   const { pathname } = useLocation();
+  const { data: plansData } = useApi<PlansResponse>("/plans");
+  const nav = NAV.filter((n) => !("needsPlans" in n) || plansData?.enabled);
 
   return (
     <div className="ambient min-h-dvh">
@@ -50,7 +55,7 @@ export function Shell() {
           <Logo className="size-7" />
           <span className="text-[15px] font-semibold tracking-tight md:sr-only lg:not-sr-only">Keygate</span>
         </div>
-        <nav aria-label="Main" className="flex flex-col gap-1">{NAV.map((n) => <SideLink key={n.to} {...n} />)}</nav>
+        <nav aria-label="Main" className="flex flex-col gap-1">{nav.map((n) => <SideLink key={n.to} to={n.to} label={n.label} icon={n.icon} end={n.end} />)}</nav>
         <div className="mt-auto flex flex-col gap-1">
           <button onClick={toggle} title={dark ? "Switch to light theme" : "Switch to dark theme"} className="flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted transition-colors hover:bg-raised hover:text-fg md:justify-center lg:justify-start">
             {dark ? Icon.sun : Icon.moon}<span className="md:sr-only lg:not-sr-only">{dark ? "Light theme" : "Dark theme"}</span>
@@ -70,7 +75,7 @@ export function Shell() {
       </main>
 
       <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-bg/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
-        {NAV.map((n) => (
+        {nav.map((n) => (
           <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => cx("flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium", isActive ? "text-fg" : "text-faint")}>
             {n.icon}{n.label}
           </NavLink>

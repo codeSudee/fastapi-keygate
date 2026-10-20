@@ -313,6 +313,7 @@ export const Icon = {
   overview: <I d={<><rect x="3" y="3" width="6" height="7" rx="1.5" /><rect x="11" y="3" width="6" height="4" rx="1.5" /><rect x="3" y="12" width="6" height="5" rx="1.5" /><rect x="11" y="9" width="6" height="8" rx="1.5" /></>} />,
   key: <I d={<><circle cx="7" cy="12" r="3.5" /><path d="M9.5 9.5L16 3m-2.5 2.5l2 2M11.5 7.5l1.5 1.5" /></>} />,
   settings: <I d={<><path d="M4 6h7M15 6h1M4 14h1M9 14h7" /><circle cx="13" cy="6" r="2" /><circle cx="7" cy="14" r="2" /></>} />,
+  plans: <I d={<><rect x="3" y="4" width="14" height="12" rx="2" /><path d="M3 8h14M6.5 12h3" /></>} />,
   plus: <I d={<path d="M10 4v12M4 10h12" />} />,
   copy: <I d={<><rect x="7" y="7" width="9" height="9" rx="2" /><path d="M13 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" /></>} />,
   check: <I d={<path d="M4 10.5l4 4 8-9" />} />,

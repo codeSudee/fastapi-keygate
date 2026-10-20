@@ -13,12 +13,12 @@ from datetime import timedelta
 
 import uvicorn
 from fastapi import Depends, FastAPI
-from keygate import ApiKey, KeyGate
+from keygate import DEFAULT_PLANS, ApiKey, KeyGate
 from keygate.dashboard import mount_dashboard
 from keygate.models import UsageRow, utcnow
 
 app = FastAPI()
-gate = KeyGate(app, db_url="sqlite:///dashboard-demo.db", admin_secret="demo-secret")
+gate = KeyGate(app, db_url="sqlite:///dashboard-demo.db", admin_secret="demo-secret", plans=DEFAULT_PLANS)
 mount_dashboard(app, gate)
 
 

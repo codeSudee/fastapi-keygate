@@ -55,3 +55,10 @@ export interface KeyUsage {
   rate: RateWindow[];
 }
 export interface Defaults { default_per_minute: number | null; default_per_hour: number | null }
+
+export interface PlanInfo {
+  id: string; name: string; price: string | null;
+  max_keys: number | null; key_per_minute: number | null; key_per_hour: number | null;
+  max_scopes: number | null; wildcard_scope: boolean;
+}
+export interface PlansResponse { enabled: boolean; plans: PlanInfo[]; default: string | null }

@@ -1,6 +1,6 @@
 # fastapi-keygate: session context
 
-Last updated: 2026-10-21. Read this first in a new session, then verify against the code and `git log`.
+Last updated: 2026-10-22. Read this first in a new session, then verify against the code and `git log`.
 
 ## What this is
 `fastapi-keygate` (import `keygate`): API-key auth, per-key rate limits and usage tracking for FastAPI.
@@ -21,18 +21,19 @@ GitHub: codeSudee/fastapi-keygate. PyPI: 0.4.0. Python tests: `.venv/bin/python 
 ## In progress: paid plans (not shipped)
 Design is in `docs/PLANS.md`. User decisions so far:
 - Model: **each developer pays the user** (hosted product), a plan per `owner_id`.
-- Tier numbers: use the proposals in `docs/PLANS.md`. **Prices: undecided (left None).**
+- Tier numbers: use the proposals in `docs/PLANS.md`. **Prices (decided): Free $0, Pro $12/mo, Team $39/mo, USD, monthly.** They come from a thin, unverified benchmark (Apitally, Zuplo, Unkey) and are untested against real demand.
 - Build order: (0) plan model, sync gate -> (1) async gate support -> (2) pricing/billing page in the dashboard -> (3) Stripe checkout, **test mode only**.
 - Done: (0) plan model on the sync gate, request-time clamping of existing keys, and (1) the same on `AsyncKeyGate`, including the dashboard API on both. Deliberately minimal: max_keys, per-key caps, scope limits, 402 on a plan limit. Owner-level rate windows and per-plan retention pruning are deferred.
-- Next: (2) pricing/billing page in the dashboard (needs prices from the user), (3) Stripe test mode.
+- Done: (2) read-only Plans page in the dashboard (nav item only when `plans` is enabled; no checkout, says billing isn't connected). Demo now enables plans.
+- Next: (3) Stripe test mode, but only after the hosted-model gap is settled with the user.
 - Grace period on past-due/canceled plans: undecided. Leaning: block new keys immediately, never auto-revoke existing keys, decide any grace period at the Stripe step.
 
 ## Where we left off (2026-10-21) / next step
-- Latest commit: `c93a880`. 78 tests pass, 3 skipped. Steps (0) and (1) are done and pushed.
-- **Blocked on the user:** prices, currency and billing period (nothing is priced; `Plan.price` is None). Also the past-due/canceled grace-period decision. Ask for these first.
-- Then: (2) pricing/billing page in the dashboard (first legit use of the conversion-psychology skill, honest framing only), (3) Stripe test mode.
+- Run `git log --oneline -3`. 78 tests pass, 3 skipped. Steps (0), (1), (2) done. Also shipped: URL-synced ranges/filters, skeleton fallback, unsaved-changes cue on Settings.
+- **Blocked on the user:** the past-due/canceled grace-period decision and the hosted-model design.
+- Then: (3) Stripe test mode.
 - Before step 3, raise the hosted-model gap (developer accounts/login, how usage reaches the user's service) with the user; do not build billing on top of it silently.
-- Small open items: the sign-in card repeats a heading the left side already says; sign-in page only checked down to ~900px wide, not phone width; blank first paint (~1s) before a page's chunk and data load.
+- Small open items: phone width never verified (browser window can't go below 1400px); in-app sidebar navigation still discards unsaved Settings edits silently (needs a data router or a confirm in Shell).
 - Dev loop: `python examples/dashboard_demo.py` (secret `demo-secret`) serves the built UI at `localhost:8000/keygate/dashboard`; rebuild UI with `cd dashboard && npm run build`. Stop the demo with `pkill -f dashboard_demo.py`.
 - Always run `git log --oneline -5` and `git status` first to confirm this file is current.
 
@@ -50,4 +51,4 @@ Design is in `docs/PLANS.md`. User decisions so far:
 - The conversion-psychology skill applies only to sell/sign-up pages. The pricing page is the first place it may legitimately apply, with no fake urgency, scarcity or progress.
 
 ## Roadmap, not started
-Skeleton loader for first paint, URL-synced filters/ranges, unsaved-changes warning, Alembic migrations, async usage batching.
+Alembic migrations, async usage batching.
