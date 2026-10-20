@@ -128,7 +128,13 @@ class KeyGate:
             )
         request.scope.setdefault("state", {})[_STATE_KEY] = row.id
 
-        allowed, headers = self._limiter.hit(row.id, row.per_minute, row.per_hour)
+        per_minute, per_hour = row.per_minute, row.per_hour
+        if self.plans is not None:  # a downgrade must limit existing keys too
+            plan = self.get_plan(row.owner_id)
+            per_minute = clamp_limit(per_minute, plan.key_per_minute)
+            per_hour = clamp_limit(per_hour, plan.key_per_hour)
+
+        allowed, headers = self._limiter.hit(row.id, per_minute, per_hour)
         if not allowed:
             raise HTTPException(429, "Rate limit exceeded", headers=headers)
         if headers:

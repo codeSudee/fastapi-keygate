@@ -6,7 +6,7 @@ Status: **step 0 implemented for the sync `KeyGate` only** (see "Implemented" be
 
 - `plans.py`, the `keygate_owners` table, `KeyGate(plans=..., default_plan=...)`, `get_plan`/`set_plan`/`active_key_count`, and `/plans`, `/plan` (GET, PUT) in the dashboard API. Plans are **opt-in**: `plans=None` (the default) enforces nothing, because the Free caps would break existing deployments.
 - Enforced at **create/edit time only**: `max_keys` (active keys), per-key limit caps (clamped; unlimited becomes the cap), `max_scopes`, `wildcard_scope`. 402 responses carry `code/limit/current/cap/upgrade_to`.
-- **Deferred:** owner-level rate windows, per-plan retention (`prune_by_plan`, range clamping), request-time clamping of existing keys, the async gate, pricing UI, billing. Until request-time clamping exists, a downgrade does not lower the limits of keys that already exist.
+- **Deferred:** owner-level rate windows, per-plan retention (`prune_by_plan`, range clamping), the async gate, pricing UI, billing. Request-time clamping is implemented: `require` applies the plan's per-key caps on every request, so a downgrade limits existing keys immediately (one extra owner-row query per request when plans are on).
 - Known gap: the key-count check and insert are not atomic, so two simultaneous creates can exceed `max_keys` by one.
 
 ## 0. Assumption to confirm

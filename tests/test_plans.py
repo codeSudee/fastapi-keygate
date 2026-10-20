@@ -153,3 +153,29 @@ def test_plan_endpoints_when_plans_are_off():
     h = {"Authorization": "Bearer " + client.post(f"{API}/login", json={"secret": "s3cret"}).json()["token"]}
     assert client.get(f"{API}/plans", headers=h).json() == {"enabled": False, "plans": [], "default": None}
     assert client.get(f"{API}/plan?owner_id=a", headers=h).status_code == 404
+
+
+def test_downgrade_limits_existing_keys_at_request_time():
+    from fastapi import Depends, FastAPI
+    from fastapi.testclient import TestClient
+
+    from keygate import ApiKey
+
+    plans = {
+        "big": Plan("big", "Big", None, 100, None, None, True),
+        "small": Plan("small", "Small", None, 2, None, None, True),
+    }
+    app = FastAPI()
+    gate = KeyGate(db_url="sqlite://", plans=plans, default_plan="big")
+
+    @app.get("/ping")
+    def ping(key: ApiKey = Depends(gate.require)):
+        return {}
+
+    k = gate.create_key("acme", per_minute=50)
+    c = TestClient(app)
+    h = {"X-API-Key": k.key}
+    assert all(c.get("/ping", headers=h).status_code == 200 for _ in range(3))
+    gate.set_plan("acme", "small")  # key row still says 50/min
+    codes = [c.get("/ping", headers=h).status_code for _ in range(4)]
+    assert codes.count(429) >= 2
