@@ -5,7 +5,7 @@ Last updated: 2026-10-20. Read this first in a new session, then verify against 
 ## What this is
 `fastapi-keygate` (import `keygate`): API-key auth, per-key rate limits and usage tracking for FastAPI.
 SQLAlchemy (SQLite default), `limits` for rate limiting. Sync `KeyGate` and `AsyncKeyGate`.
-GitHub: codeSudee/fastapi-keygate. PyPI: 0.4.0 (0.5.0 prepared, see below). Python tests: `.venv/bin/python -m pytest -q`.
+GitHub: codeSudee/fastapi-keygate. PyPI: 0.5.0. Python tests: `.venv/bin/python -m pytest -q`.
 
 ## What exists
 - Core library, CLI, rotation, scopes, expiry, usage batching/pruning. See README.
@@ -28,17 +28,11 @@ Design is in `docs/PLANS.md`. User decisions so far:
 - Step (3) Stripe test mode is deferred indefinitely, see the revised model above.
 - Grace period (decided, not yet coded): past-due keeps full access for ~14 days (configurable by the adopter); after that block new keys and fall back to the default plan; never auto-revoke existing keys. Based on dunning guidance of 3-4 retries over 2-3 weeks; verify against Stripe docs before relying on it.
 
-## Where we left off (2026-10-20) / next step: RELEASE 0.5.0
-State: 78 tests pass, 3 skipped. `main` has commits ahead of `origin/main` (unpushed); run `git log --oneline -6` and `git status -sb`. Everything below is built and verified locally.
-- Shipped on main, unreleased: dashboard (with phone layout, URL-synced ranges, skeletons, Keys->detail title morph, portaled row menu, sign-in page theme toggle and show/hide secret, animation polish), opt-in plans + read-only Plans page, landing site and mock-data demo in `site/`.
-- **Live site (deployed 2026-10-20, Cloudflare Workers static assets):** https://fastapi-keygate.code-sudeepto.workers.dev (`/` landing, `/demo/` dashboard on sample data with hash routes). Redeploy: `cd dashboard && npm run build:demo`, then `cd site && npx wrangler deploy` (wrangler OAuth login is saved on the user's machine; `npx wrangler logout` removes it).
-- **0.5.0 is prepared but NOT released.** Already done: `pyproject.toml` version 0.5.0, CHANGELOG entry dated 2026-10-20, README dashboard/plans sections, and a packaging fix: `pyproject.toml` `artifacts` plus `.github/workflows/publish.yml` now builds the dashboard (Node 22, `npm ci && npm run build`) and asserts the wheel contains `dashboard_static/index.html`. Before this fix a release would have shipped without the UI (the 0.4.0 wheel has none). A local build produced a wheel with 21 UI files. The publish workflow itself has never run: watch its first run.
-- **Remaining release steps (user said they will do it in a new session):**
-  1. Landing page pill in `site/public/index.html` says "Alpha, v0.4 on PyPI": change to v0.5.
-  2. `git push origin main`.
-  3. Confirm with the user, then `gh release create v0.5.0` (triggers PyPI trusted publishing, irreversible). Release flow also in memory `project-status`.
-  4. Watch the Publish workflow (`gh run watch`), then confirm PyPI shows 0.5.0 and `pip install` in a clean venv gives a dashboard that serves its UI (`mount_dashboard` + open `/keygate/dashboard`).
-  5. Redeploy the site (`dashboard` demo build + `wrangler deploy`) so the pill matches.
+## Where we left off (2026-10-20) / next step: LAUNCH
+State: 0.5.0 is RELEASED and pushed. 78 tests pass, 3 skipped. Run `git log --oneline -6` and `git status -sb` to confirm.
+- Shipped in 0.5.0: dashboard (phone layout, URL-synced ranges, skeletons, Keys->detail title morph, portaled row menu, sign-in theme toggle and show/hide secret, animation polish), opt-in plans + read-only Plans page, landing site and mock-data demo in `site/`.
+- **Release done (2026-10-20):** https://github.com/codeSudee/fastapi-keygate/releases/tag/v0.5.0. The Publish workflow's first run succeeded (it builds the dashboard and asserts the wheel contains `dashboard_static/index.html`). A clean venv `pip install fastapi-keygate==0.5.0` has `dashboard_static/index.html`. Not done: starting a server from that install and opening `/keygate/dashboard` in a browser.
+- **Live site (redeployed 2026-10-20 with the v0.5 pill, Cloudflare Workers static assets):** https://fastapi-keygate.code-sudeepto.workers.dev (`/` landing, `/demo/` dashboard on sample data with hash routes). Redeploy: `cd dashboard && npm run build:demo`, then `cd site && npx wrangler deploy` (wrangler OAuth login is saved on the user's machine; `npx wrangler logout` removes it).
 - After release: the launch (user's plan): demo/launch video via HeyGen HyperFrames in a new session plus a dedicated X account. When the user says building is done, explain how the video gets made and leave a pasteable brief (see memory `launch-plan`). Never post or create accounts without explicit confirmation.
 - Nothing is blocked on decisions. Optional later work: enforce `billing_status` with the grace policy only if demand shows up; sidebar nav discards unsaved Settings edits silently (needs a data router or a confirm in Shell); real-device emulation not tested (phone width checked at 390/360px via iframes).
 - Dev loop: `python examples/dashboard_demo.py` (secret `demo-secret`) serves the built UI at `localhost:8000/keygate/dashboard`; rebuild UI with `cd dashboard && npm run build`. Stop the demo with `pkill -f dashboard_demo.py`.
