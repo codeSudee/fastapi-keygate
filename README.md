@@ -157,7 +157,7 @@ MIT licensed.
 
 ## Web dashboard
 
-A hosted UI for viewing keys, usage graphs, live rate-limit status, and editing, rotating or revoking keys.
+A built-in UI for viewing keys, usage graphs, live rate-limit status, and editing, rotating or revoking keys.
 
 ```python
 from keygate.dashboard import mount_dashboard
@@ -166,6 +166,19 @@ gate = KeyGate(app, admin_secret="change-me")
 mount_dashboard(app, gate)  # open /keygate/dashboard and sign in with the admin secret
 ```
 
-The API lives under `/keygate/dashboard/api` and reads straight from the gate's own key and usage tables. Try it with sample traffic: `python examples/dashboard_demo.py` (secret: `demo-secret`).
+The API lives under `/keygate/dashboard/api` and reads straight from the gate's own key and usage tables. Try it with sample traffic: `python examples/dashboard_demo.py` (secret: `demo-secret`), or click around the [live demo](https://fastapi-keygate.code-sudeepto.workers.dev/demo/) (sample data, nothing saved).
 
 The UI source is in `dashboard/` (React, TypeScript, Tailwind, Framer Motion). Build it into the package with `cd dashboard && npm install && npm run build`, or run `npm run dev` for hot reload against a local API on :8000.
+
+### Plans (optional)
+
+Cap what each owner can do. Plans are off by default:
+
+```python
+from keygate import DEFAULT_PLANS, KeyGate
+
+gate = KeyGate(app, admin_secret="change-me", plans=DEFAULT_PLANS)  # free / pro / team
+gate.set_plan("acme", "pro")
+```
+
+Each `owner_id` gets a plan that limits active keys, per-key rate limits and scopes. Going over returns `402` with a `plan_limit` payload. Billing is not included: assign plans from your own code (for example from a payment webhook) with `set_plan(owner_id, plan, billing_status=...)`.

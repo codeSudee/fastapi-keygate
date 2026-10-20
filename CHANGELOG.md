@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0 — unreleased (set the date when releasing)
+
+- **Web dashboard:** `mount_dashboard(app, gate)` serves a UI at `/keygate/dashboard` for keys, usage graphs, live rate-limit status, and creating, editing, rotating and revoking keys. Sign in with the `admin_secret` (exchanged for a 12-hour signed token). Works with `KeyGate` and `AsyncKeyGate`. Try it with `python examples/dashboard_demo.py` (secret `demo-secret`), or the [live demo](https://fastapi-keygate.code-sudeepto.workers.dev/demo/) on sample data.
+- **Plans (opt-in):** `KeyGate(plans=DEFAULT_PLANS)` (also on `AsyncKeyGate`) attaches a plan to each `owner_id` and enforces `max_keys`, per-key rate caps and scope limits, returning `402` with a `plan_limit` payload. Default catalog: Free, Pro and Team. Caps apply to existing keys at request time, so a downgrade takes effect immediately. New: `get_key`, `update_key`, `get_plan`, `set_plan`, `rate_status`. Billing is not included; prices are display-only.
+- Fix: the published wheel now includes the built dashboard UI.
+- Known gaps: the key-count check and insert are not atomic, so two simultaneous creates can exceed `max_keys` by one.
+
 ## 0.4.0 — 2026-10-18
 
 - **`AsyncKeyGate`:** async twin of `KeyGate` for `sqlite+aiosqlite` / `postgresql+asyncpg` and `async+redis://` stores (`pip install fastapi-keygate[async]`, plus `[asyncpg]`; async Redis uses the `[redis]` extra). Same features: auth, scopes, expiry, rotation, usage, admin API.

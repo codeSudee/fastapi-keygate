@@ -12,3 +12,5 @@ src/keygate/dashboard_static/
 dashboard-demo.db
 dashboard/*.tsbuildinfo
 site/public/demo/
+.wrangler/
+site/node_modules/

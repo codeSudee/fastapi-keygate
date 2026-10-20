@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fastapi-keygate"
-version = "0.4.0"
+version = "0.5.0"
 description = "API-key auth, per-key rate limiting and usage tracking for FastAPI, in a few lines."
 readme = "README.md"
 license = "MIT"
@@ -47,6 +47,11 @@ dev = ["pytest>=7", "pytest-asyncio>=0.23", "httpx>=0.24", "sqlalchemy[asyncio]>
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/keygate"]
+# The built dashboard UI is gitignored; hatchling skips ignored files unless listed here.
+artifacts = ["src/keygate/dashboard_static/**"]
+
+[tool.hatch.build.targets.sdist]
+artifacts = ["src/keygate/dashboard_static/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
