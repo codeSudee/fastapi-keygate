@@ -1,18 +1,19 @@
 import atexit
 import threading
 from datetime import datetime, timedelta
-from typing import Any, Callable, Iterable, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 from anyio import to_thread
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
-from sqlalchemy import create_engine, inspect, select, text
+from sqlalchemy import create_engine, func, inspect, or_, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from . import usage as _usage
 from .keys import generate_key, parse_prefix, verify_key
-from .models import ApiKeyRow, Base, utcnow
+from .models import ApiKeyRow, Base, OwnerRow, utcnow
+from .plans import Plan, check_key_count, check_scopes, clamp_limit
 from .ratelimit import RateLimiter
 from .schemas import ApiKey, KeyCreated, UsageStats
 
@@ -35,6 +36,10 @@ class KeyGate:
             don't specify their own. ``None`` means unlimited.
         header: Header carrying the key. ``Authorization: Bearer <key>`` is
             always accepted too.
+        plans: Optional ``{id: Plan}`` catalog (see ``keygate.DEFAULT_PLANS``).
+            When set, ``create_key``/``update_key`` enforce each owner's plan
+            caps. Off by default, so existing deployments are unchanged.
+        default_plan: Plan id for owners with no plan of their own.
     """
 
     def __init__(
@@ -47,7 +52,13 @@ class KeyGate:
         default_per_hour: Optional[int] = None,
         header: str = "X-API-Key",
         usage_batch_size: int = 1,
+        plans: Optional[Dict[str, Plan]] = None,
+        default_plan: str = "free",
     ) -> None:
+        if plans is not None and default_plan not in plans:
+            raise ValueError(f"default_plan {default_plan!r} is not in plans")
+        self.plans = plans
+        self.default_plan = default_plan
         self.admin_secret = admin_secret
         self.default_per_minute = default_per_minute
         self.default_per_hour = default_per_hour
@@ -184,19 +195,27 @@ class KeyGate:
         scopes = list(scopes)
         if any(not s or s.split() != [s] for s in scopes):
             raise ValueError("scopes must be non-empty strings without whitespace")
-        key, prefix, key_hash = generate_key()
-        row = ApiKeyRow(
-            prefix=prefix,
-            key_hash=key_hash,
-            owner_id=owner_id,
-            name=name,
-            per_minute=self.default_per_minute if per_minute is _UNSET else per_minute,
-            per_hour=self.default_per_hour if per_hour is _UNSET else per_hour,
-            created_at=utcnow(),
-            expires_at=expires_at,
-            scopes=" ".join(dict.fromkeys(scopes)),
-        )
+        per_minute = self.default_per_minute if per_minute is _UNSET else per_minute
+        per_hour = self.default_per_hour if per_hour is _UNSET else per_hour
         with self._sessions() as s:
+            plan = self._plan_for(s, owner_id)
+            if plan is not None:
+                check_key_count(self.plans, plan, self._active_count(s, owner_id))
+                check_scopes(self.plans, plan, scopes)
+                per_minute = clamp_limit(per_minute, plan.key_per_minute)
+                per_hour = clamp_limit(per_hour, plan.key_per_hour)
+            key, prefix, key_hash = generate_key()
+            row = ApiKeyRow(
+                prefix=prefix,
+                key_hash=key_hash,
+                owner_id=owner_id,
+                name=name,
+                per_minute=per_minute,
+                per_hour=per_hour,
+                created_at=utcnow(),
+                expires_at=expires_at,
+                scopes=" ".join(dict.fromkeys(scopes)),
+            )
             s.add(row)
             s.commit()
         return KeyCreated(**ApiKey.model_validate(row).model_dump(), key=key)
@@ -227,7 +246,9 @@ class KeyGate:
         """Change a live key's name, limits, scopes or expiry; omitted fields are kept.
 
         Pass ``None`` for a limit or ``expires_at`` to clear it. Returns ``None``
-        if the key doesn't exist or is revoked. The secret never changes.
+        if the key doesn't exist or is revoked. The secret never changes. With
+        plans on, limits and scopes you *change* are clamped/checked against the
+        owner's plan; values left as they are are never touched.
         """
         if scopes is not _UNSET:
             scopes = list(scopes)
@@ -237,6 +258,14 @@ class KeyGate:
             row = s.get(ApiKeyRow, key_id)
             if row is None or row.revoked_at is not None:
                 return None
+            plan = self._plan_for(s, row.owner_id)
+            if plan is not None:
+                if per_minute is not _UNSET and per_minute != row.per_minute:
+                    per_minute = clamp_limit(per_minute, plan.key_per_minute)
+                if per_hour is not _UNSET and per_hour != row.per_hour:
+                    per_hour = clamp_limit(per_hour, plan.key_per_hour)
+                if scopes is not _UNSET and list(dict.fromkeys(scopes)) != row.scopes.split():
+                    check_scopes(self.plans, plan, scopes)
             if name is not _UNSET:
                 row.name = name
             if per_minute is not _UNSET:
@@ -249,6 +278,63 @@ class KeyGate:
                 row.expires_at = expires_at
             s.commit()
             return ApiKey.model_validate(row)
+
+    # -- plans ------------------------------------------------------------
+
+    def _plan_for(self, s: Session, owner_id: str) -> Optional[Plan]:
+        if self.plans is None:
+            return None
+        row = s.get(OwnerRow, owner_id)
+        # an id that's no longer in the catalog falls back to the default plan
+        return self.plans.get(row.plan if row else self.default_plan, self.plans[self.default_plan])
+
+    def _active_count(self, s: Session, owner_id: str) -> int:
+        now = utcnow()
+        return s.scalar(
+            select(func.count())
+            .select_from(ApiKeyRow)
+            .where(
+                ApiKeyRow.owner_id == owner_id,
+                ApiKeyRow.revoked_at.is_(None),
+                or_(ApiKeyRow.expires_at.is_(None), ApiKeyRow.expires_at > now),
+            )
+        )
+
+    def get_plan(self, owner_id: str) -> Optional[Plan]:
+        """The owner's plan, or ``None`` when plans are not enabled."""
+        with self._sessions() as s:
+            return self._plan_for(s, owner_id)
+
+    def set_plan(
+        self,
+        owner_id: str,
+        plan_id: str,
+        billing_ref: Any = _UNSET,
+        billing_status: Any = _UNSET,
+    ) -> Plan:
+        """Put an owner on ``plan_id``. Existing keys are never revoked or rewritten."""
+        if self.plans is None:
+            raise ValueError("plans are not enabled; pass KeyGate(plans=...)")
+        if plan_id not in self.plans:
+            raise ValueError(f"unknown plan {plan_id!r}")
+        now = utcnow()
+        with self._sessions() as s:
+            row = s.get(OwnerRow, owner_id)
+            if row is None:
+                row = OwnerRow(owner_id=owner_id, plan=plan_id, plan_changed_at=now, created_at=now)
+                s.add(row)
+            elif row.plan != plan_id:
+                row.plan, row.plan_changed_at = plan_id, now
+            if billing_ref is not _UNSET:
+                row.billing_ref = billing_ref
+            if billing_status is not _UNSET:
+                row.billing_status = billing_status
+            s.commit()
+        return self.plans[plan_id]
+
+    def active_key_count(self, owner_id: str) -> int:
+        with self._sessions() as s:
+            return self._active_count(s, owner_id)
 
     def revoke(self, key_id: int) -> bool:
         """Revoke a key. Returns False if it doesn't exist or was already revoked."""

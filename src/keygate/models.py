@@ -40,3 +40,16 @@ class UsageRow(Base):
     method: Mapped[str] = mapped_column(String(10))
     path: Mapped[str] = mapped_column(String(512))
     status: Mapped[int] = mapped_column(Integer)
+
+
+class OwnerRow(Base):
+    """An owner's plan. No row means the gate's default plan."""
+
+    __tablename__ = "keygate_owners"
+
+    owner_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    plan: Mapped[str] = mapped_column(String(32))
+    billing_ref: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    billing_status: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    plan_changed_at: Mapped[datetime] = mapped_column(DateTime)
+    created_at: Mapped[datetime] = mapped_column(DateTime)

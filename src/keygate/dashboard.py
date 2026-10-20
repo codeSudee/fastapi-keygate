@@ -23,12 +23,13 @@ from pathlib import Path
 from typing import Any, Deque, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sqlalchemy import BigInteger, case, cast, func, select
 
 from .models import ApiKeyRow, UsageRow, utcnow
+from .plans import PlanLimitError
 from .schemas import ApiKey
 
 TOKEN_TTL = 12 * 3600
@@ -113,6 +114,11 @@ class PatchKey(BaseModel):
     per_hour: Optional[int] = Field(default=None, ge=1)
     expires_at: Optional[datetime] = None
     scopes: Optional[List[str]] = None
+
+
+class SetPlan(BaseModel):
+    owner_id: str = Field(min_length=1, max_length=255)
+    plan: str
 
 
 class Settings(BaseModel):
@@ -342,6 +348,8 @@ def build_router(gate) -> APIRouter:
             created = gate.create_key(
                 body.owner_id, body.name, expires_at=body.expires_at, scopes=body.scopes, **limits
             )
+        except PlanLimitError as e:
+            return JSONResponse(e.payload(), status_code=402)
         except ValueError as e:
             raise HTTPException(422, str(e))
         return {**serialize(created), "key": created.key}
@@ -351,6 +359,8 @@ def build_router(gate) -> APIRouter:
         changes = {f: getattr(body, f) for f in body.model_fields_set}
         try:
             updated = gate.update_key(key_id, **changes)
+        except PlanLimitError as e:
+            return JSONResponse(e.payload(), status_code=402)
         except ValueError as e:
             raise HTTPException(422, str(e))
         if updated is None:
@@ -390,6 +400,41 @@ def build_router(gate) -> APIRouter:
             "last_request": _iso(stats.last_request),
             "rate": rate(k),
         }
+
+    def plan_json(p) -> dict:
+        d = {k: getattr(p, k) for k in ("id", "name", "max_keys", "key_per_minute", "key_per_hour", "max_scopes", "wildcard_scope")}
+        return {**d, "price": p.price}
+
+    def plans_on():
+        if gate.plans is None:
+            raise HTTPException(404, "Plans are not enabled on this server")
+
+    @guarded.get("/plans")
+    def plans() -> dict:
+        if gate.plans is None:
+            return {"enabled": False, "plans": [], "default": None}
+        return {"enabled": True, "plans": [plan_json(p) for p in gate.plans.values()], "default": gate.default_plan}
+
+    @guarded.get("/plan")
+    def get_plan(owner_id: str) -> dict:
+        plans_on()
+        plan = gate.get_plan(owner_id)
+        active = gate.active_key_count(owner_id)
+        return {
+            "owner_id": owner_id,
+            "plan": plan_json(plan),
+            "usage": {"active_keys": active},
+            "can_create_key": plan.max_keys is None or active < plan.max_keys,
+        }
+
+    @guarded.put("/plan")
+    def put_plan(body: SetPlan) -> dict:
+        plans_on()
+        try:
+            gate.set_plan(body.owner_id, body.plan)
+        except ValueError as e:
+            raise HTTPException(422, str(e))
+        return get_plan(body.owner_id)
 
     def _defaults() -> dict:
         return {

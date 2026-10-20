@@ -3,8 +3,10 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from .plans import PlanLimitError
 from .schemas import ApiKey, KeyCreated, UsageStats
 
 
@@ -28,7 +30,10 @@ def build_router(gate) -> APIRouter:
     def create(body: NewKey) -> KeyCreated:
         # Only explicitly-sent limits override the gate defaults (null = unlimited).
         limits = {k: getattr(body, k) for k in ("per_minute", "per_hour") if k in body.model_fields_set}
-        return gate.create_key(body.owner_id, body.name, expires_at=body.expires_at, scopes=body.scopes, **limits)
+        try:
+            return gate.create_key(body.owner_id, body.name, expires_at=body.expires_at, scopes=body.scopes, **limits)
+        except PlanLimitError as e:
+            return JSONResponse(e.payload(), status_code=402)
 
     @router.get("/keys", response_model=List[ApiKey])
     def list_(owner_id: Optional[str] = None, include_revoked: bool = False) -> List[ApiKey]:
