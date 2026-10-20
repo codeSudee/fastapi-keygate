@@ -5,11 +5,11 @@ Last updated: 2026-10-20. Read this first in a new session, then verify against 
 ## What this is
 `fastapi-keygate` (import `keygate`): API-key auth, per-key rate limits and usage tracking for FastAPI.
 SQLAlchemy (SQLite default), `limits` for rate limiting. Sync `KeyGate` and `AsyncKeyGate`.
-GitHub: codeSudee/fastapi-keygate. PyPI: 0.4.0. Python tests: `.venv/bin/python -m pytest -q`.
+GitHub: codeSudee/fastapi-keygate. PyPI: 0.4.0 (0.5.0 prepared, see below). Python tests: `.venv/bin/python -m pytest -q`.
 
 ## What exists
 - Core library, CLI, rotation, scopes, expiry, usage batching/pruning. See README.
-- **Web dashboard** (commit `2a309b4`):
+- **Web dashboard** (first commit `2a309b4`, since extended):
   - UI in `dashboard/` (React + TS + Tailwind v4 + Framer Motion + Recharts + Lenis). Build: `cd dashboard && npm run build` (outputs to `src/keygate/dashboard_static/`, gitignored).
   - API in `src/keygate/dashboard.py`, mounted with `mount_dashboard(app, gate)`. Login = `admin_secret` exchanged for a 12h signed token.
   - Added to the gate: `get_key`, `update_key`, `rate_status`, `RateLimiter.status`.
@@ -28,11 +28,19 @@ Design is in `docs/PLANS.md`. User decisions so far:
 - Step (3) Stripe test mode is deferred indefinitely, see the revised model above.
 - Grace period (decided, not yet coded): past-due keeps full access for ~14 days (configurable by the adopter); after that block new keys and fall back to the default plan; never auto-revoke existing keys. Based on dunning guidance of 3-4 retries over 2-3 weeks; verify against Stripe docs before relying on it.
 
-## Where we left off (2026-10-20) / next step
-- Run `git log --oneline -3`. 78 tests pass, 3 skipped. Steps (0), (1), (2) done. Also shipped: URL-synced ranges/filters, skeleton fallback, unsaved-changes cue on Settings.
-- Nothing is blocked on the user. Next only if demand shows up: enforce `billing_status` with the grace policy; a hosted offering would need tenancy design first.
-- Before step 3, raise the hosted-model gap (developer accounts/login, how usage reaches the user's service) with the user; do not build billing on top of it silently.
-- Small open items: phone width verified 2026-10-20 at 390px and 360px via same-origin iframes (no horizontal overflow, row menu flips upward); not tested on real device emulation; in-app sidebar navigation still discards unsaved Settings edits silently (needs a data router or a confirm in Shell).
+## Where we left off (2026-10-20) / next step: RELEASE 0.5.0
+State: 78 tests pass, 3 skipped. `main` has commits ahead of `origin/main` (unpushed); run `git log --oneline -6` and `git status -sb`. Everything below is built and verified locally.
+- Shipped on main, unreleased: dashboard (with phone layout, URL-synced ranges, skeletons, Keys->detail title morph, portaled row menu, sign-in page theme toggle and show/hide secret, animation polish), opt-in plans + read-only Plans page, landing site and mock-data demo in `site/`.
+- **Live site (deployed 2026-10-20, Cloudflare Workers static assets):** https://fastapi-keygate.code-sudeepto.workers.dev (`/` landing, `/demo/` dashboard on sample data with hash routes). Redeploy: `cd dashboard && npm run build:demo`, then `cd site && npx wrangler deploy` (wrangler OAuth login is saved on the user's machine; `npx wrangler logout` removes it).
+- **0.5.0 is prepared but NOT released.** Already done: `pyproject.toml` version 0.5.0, CHANGELOG entry dated 2026-10-20, README dashboard/plans sections, and a packaging fix: `pyproject.toml` `artifacts` plus `.github/workflows/publish.yml` now builds the dashboard (Node 22, `npm ci && npm run build`) and asserts the wheel contains `dashboard_static/index.html`. Before this fix a release would have shipped without the UI (the 0.4.0 wheel has none). A local build produced a wheel with 21 UI files. The publish workflow itself has never run: watch its first run.
+- **Remaining release steps (user said they will do it in a new session):**
+  1. Landing page pill in `site/public/index.html` says "Alpha, v0.4 on PyPI": change to v0.5.
+  2. `git push origin main`.
+  3. Confirm with the user, then `gh release create v0.5.0` (triggers PyPI trusted publishing, irreversible). Release flow also in memory `project-status`.
+  4. Watch the Publish workflow (`gh run watch`), then confirm PyPI shows 0.5.0 and `pip install` in a clean venv gives a dashboard that serves its UI (`mount_dashboard` + open `/keygate/dashboard`).
+  5. Redeploy the site (`dashboard` demo build + `wrangler deploy`) so the pill matches.
+- After release: the launch (user's plan): demo/launch video via HeyGen HyperFrames in a new session plus a dedicated X account. When the user says building is done, explain how the video gets made and leave a pasteable brief (see memory `launch-plan`). Never post or create accounts without explicit confirmation.
+- Nothing is blocked on decisions. Optional later work: enforce `billing_status` with the grace policy only if demand shows up; sidebar nav discards unsaved Settings edits silently (needs a data router or a confirm in Shell); real-device emulation not tested (phone width checked at 390/360px via iframes).
 - Dev loop: `python examples/dashboard_demo.py` (secret `demo-secret`) serves the built UI at `localhost:8000/keygate/dashboard`; rebuild UI with `cd dashboard && npm run build`. Stop the demo with `pkill -f dashboard_demo.py`.
 - Always run `git log --oneline -5` and `git status` first to confirm this file is current.
 
