@@ -2,7 +2,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { AnimatePresence, motion, useAnimationControls, useMotionTemplate, useMotionValue, useReducedMotion, useSpring, type Variants } from "framer-motion";
 import { useAuth } from "@/lib/auth";
 import { Logo } from "@/components/Shell";
-import { Badge, Button, EASE, Input, Magnetic } from "@/components/ui";
+import { Badge, Button, EASE, Icon, Input, Magnetic } from "@/components/ui";
+import { useTheme } from "@/lib/theme";
 
 const FEATURES = [
   { title: "Generate and manage keys", body: "Each key is shown once, then stored hashed. Name it, scope it, set an expiry." },
@@ -140,6 +141,8 @@ export default function Login() {
   const { login } = useAuth();
   const [secret, setSecret] = useState("");
   const [error, setError] = useState("");
+  const [showSecret, setShowSecret] = useState(false);
+  const { dark, toggle } = useTheme();
   const [busy, setBusy] = useState(false);
   const [shake, setShake] = useState(0);
   const [done, setDone] = useState(false);
@@ -178,6 +181,12 @@ export default function Login() {
     >
       {/* Cursor spotlight, plus a brighter copy of the grid revealed around the pointer */}
       <Orbs />
+      <button
+        type="button" onClick={toggle} aria-label={dark ? "Switch to light theme" : "Switch to dark theme"} title={dark ? "Switch to light theme" : "Switch to dark theme"}
+        className="absolute right-4 top-4 z-20 grid size-10 place-items-center rounded-full border border-line bg-panel/80 text-muted backdrop-blur transition-colors hover:text-fg sm:right-8 sm:top-6"
+      >
+        <motion.span key={String(dark)} initial={{ rotate: -90, scale: 0.6, opacity: 0 }} animate={{ rotate: 0, scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>{dark ? Icon.sun : Icon.moon}</motion.span>
+      </button>
       <motion.div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: glow }} />
       <motion.div
         aria-hidden className="pointer-events-none absolute inset-0 opacity-90"
@@ -211,7 +220,14 @@ export default function Login() {
             className="space-y-5 rounded-2xl border border-line bg-panel/90 p-6 shadow-card backdrop-blur"
           >
             <Input
-              label="Admin secret" name="secret" type="password" autoComplete="current-password" spellCheck={false}
+              label="Admin secret" name="secret" type={showSecret ? "text" : "password"} autoComplete="current-password" spellCheck={false}
+              trailing={(
+                <button
+                  type="button" aria-label={showSecret ? "Hide admin secret" : "Show admin secret"} aria-pressed={showSecret}
+                  onMouseDown={(e) => e.preventDefault()} onClick={() => setShowSecret((v) => !v)}
+                  className="grid size-8 place-items-center rounded-md text-muted transition-colors hover:text-fg focus-visible:outline-2 focus-visible:outline-accent"
+                >{showSecret ? Icon.eyeOff : Icon.eye}</button>
+              )}
               placeholder="The admin_secret from KeyGate(…)" value={secret} onChange={(e) => setSecret(e.target.value)}
               error={error} autoFocus
             />

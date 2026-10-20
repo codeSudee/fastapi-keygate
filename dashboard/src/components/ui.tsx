@@ -110,13 +110,14 @@ export function Spinner({ className }: { className?: string }) {
 }
 
 /* ---- Form field -------------------------------------------------------- */
-export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string; error?: string }>(
-  function Input({ label, hint, error, className, id, ...rest }, ref) {
+export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string; error?: string; trailing?: ReactNode }>(
+  function Input({ label, hint, error, trailing, className, id, ...rest }, ref) {
     const auto = useId();
     const fid = id ?? auto;
     return (
       <div className="group relative space-y-1.5">
         <label htmlFor={fid} className="block text-[13px] font-medium text-fg transition-colors group-focus-within:text-accent">{label}</label>
+        <div className="relative">
         <input
           ref={ref}
           id={fid}
@@ -127,10 +128,13 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
             "transition-[border-color,box-shadow] duration-150 hover:border-line-strong",
             "focus:border-accent focus:outline-none focus:ring-4 focus:ring-[color-mix(in_srgb,var(--accent)_22%,transparent)]",
             error ? "border-bad" : "border-line",
+            trailing ? "pr-10" : "",
             className,
           )}
           {...rest}
         />
+        {trailing && <div className="absolute inset-y-0 right-1 flex items-center">{trailing}</div>}
+        </div>
         <AnimatePresence initial={false} mode="popLayout">
           {(hint || error) && (
             <motion.p
@@ -347,6 +351,8 @@ export const Icon = {
   plus: <I d={<path d="M10 4v12M4 10h12" />} />,
   copy: <I d={<><rect x="7" y="7" width="9" height="9" rx="2" /><path d="M13 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" /></>} />,
   check: <I d={<path d="M4 10.5l4 4 8-9" />} />,
+  eye: <I d={<><path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6z" /><circle cx="10" cy="10" r="2.5" /></>} />,
+  eyeOff: <I d={<><path d="M3 3l14 14M8.2 5.2A8 8 0 0 1 10 5c5 0 8 5 8 5a13 13 0 0 1-2.6 3M5.6 6.6C3.6 8 2 10 2 10s3 5 8 5c1.2 0 2.3-.3 3.3-.7M8.6 8.6a2.5 2.5 0 0 0 2.8 2.8" /></>} />,
   sun: <I d={<><circle cx="10" cy="10" r="3.5" /><path d="M10 2v2m0 12v2M2 10h2m12 0h2M4.3 4.3l1.4 1.4m8.6 8.6l1.4 1.4m0-11.4l-1.4 1.4M5.7 14.3l-1.4 1.4" /></>} />,
   moon: <I d={<path d="M16.5 11.5A6.5 6.5 0 0 1 8.5 3.5a6.5 6.5 0 1 0 8 8z" />} />,
   out: <I d={<><path d="M8 4H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3M13 7l3 3-3 3M16 10H8" /></>} />,
