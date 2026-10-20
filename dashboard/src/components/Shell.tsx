@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
-import { cx, EASE, Icon } from "./ui";
+import { cx, EASE, Icon, PageSkeleton } from "./ui";
 
 const NAV = [
   { to: "/", label: "Overview", icon: Icon.overview, end: true },
@@ -64,7 +64,7 @@ export function Shell() {
       <main id="main" className="md:pl-[72px] lg:pl-60">
         <div className="mx-auto w-full max-w-[1180px] px-4 pb-28 pt-8 sm:px-6 md:pb-16 md:pt-10 lg:px-10">
           <motion.div key={pathname} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: EASE }}>
-            <Suspense fallback={<div className="h-[60vh]" />}><Outlet /></Suspense>
+            <Suspense fallback={<PageSkeleton />}><Outlet /></Suspense>
           </motion.div>
         </div>
       </main>

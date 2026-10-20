@@ -25,6 +25,13 @@ export default function SettingsPage() {
   }, [data]);
 
   const dirty = !!data && (parse(pm) !== data.default_per_minute || parse(ph) !== data.default_per_hour);
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
   const errs = { pm: valid(pm) ? "" : "Enter a whole number, or leave empty for unlimited.", ph: valid(ph) ? "" : "Enter a whole number, or leave empty for unlimited." };
 
   async function save(e: FormEvent) {
@@ -57,6 +64,7 @@ export default function SettingsPage() {
                   Existing keys keep their current limits; edit a key to change it. These defaults live in the running server and reset on restart. To make them permanent, set <code className="font-mono">default_per_minute</code> in <code className="font-mono">KeyGate(…)</code>.
                 </p>
                 <div className="flex items-center justify-end gap-3 border-t border-line px-5 py-4 sm:px-6">
+                  {dirty && <span role="status" className="mr-auto text-[13px] text-muted">Unsaved changes</span>}
                   <Button type="submit" variant="primary" loading={busy} disabled={!dirty}>Save changes</Button>
                 </div>
               </form>

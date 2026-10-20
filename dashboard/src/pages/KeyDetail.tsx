@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link, useParams } from "react-router-dom";
 import { PageHeader } from "@/components/Shell";
@@ -8,7 +7,10 @@ import { Badge, Button, Card, CardHeader, CountUp, EASE, ErrorState, Icon, Revea
 import { fmtAgo, fmtDate, fmtNum, fmtPct, fmtUntil, keyLabel, limitText } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
 import type { KeyUsage, Range } from "@/lib/types";
+import { useUrlParam } from "@/lib/useUrlParam";
 import { RANGES } from "./Overview";
+
+const RANGE_VALUES = RANGES.map((r) => r.value);
 
 const statusTone = (c: string) => (c.startsWith("2") ? "var(--ok)" : c === "429" ? "var(--warn)" : c.startsWith("4") || c.startsWith("5") ? "var(--bad)" : "var(--muted)");
 
@@ -23,7 +25,7 @@ function Meta({ label, children }: { label: string; children: React.ReactNode })
 
 export default function KeyDetail() {
   const { id } = useParams();
-  const [range, setRange] = useState<Range>("24h");
+  const [range, setRange] = useUrlParam<Range>("range", "24h", RANGE_VALUES);
   const { data: d, error, loading, reload } = useApi<KeyUsage>(`/keys/${id}/usage?range=${range}`, { refreshMs: 15_000 });
   const mgr = useKeyManager({ onChange: reload });
   const k = d?.key;

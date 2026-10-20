@@ -155,7 +155,7 @@ export default function Login() {
               <Logo className="size-12 drop-shadow-[0_8px_24px_color-mix(in_srgb,var(--accent)_45%,transparent)]" />
             </motion.div>
             <h1 className="mt-6 text-balance text-2xl font-semibold tracking-tight">Sign in to Keygate</h1>
-            <p className="mt-2 text-[15px] text-muted">Manage API keys, usage and rate limits.</p>
+            <p className="mt-2 text-[15px] text-muted">Enter your admin secret to open the dashboard.</p>
           </div>
 
           <motion.form

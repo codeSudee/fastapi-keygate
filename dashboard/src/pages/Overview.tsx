@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/Shell";
@@ -6,11 +5,13 @@ import { Button, Card, CardHeader, CountUp, EASE, ErrorState, Icon, Reveal, Segm
 import { ChartLegend, UsageChart } from "@/components/charts";
 import { useApi } from "@/lib/useApi";
 import { fmtDelta, fmtNum, fmtPct } from "@/lib/format";
+import { useUrlParam } from "@/lib/useUrlParam";
 import type { Overview as OverviewData, Range } from "@/lib/types";
 
 export const RANGES: { value: Range; label: string }[] = [
   { value: "1h", label: "1h" }, { value: "24h", label: "24h" }, { value: "7d", label: "7d" }, { value: "30d", label: "30d" },
 ];
+const RANGE_VALUES = RANGES.map((r) => r.value);
 const PERIOD: Record<Range, string> = { "1h": "last hour", "24h": "last 24 hours", "7d": "last 7 days", "30d": "last 30 days" };
 
 function Stat({ label, children, foot, delay }: { label: string; children: React.ReactNode; foot: React.ReactNode; delay: number }) {
@@ -52,7 +53,7 @@ function BarList({ rows }: { rows: { id: string; label: React.ReactNode; value: 
 }
 
 export default function Overview() {
-  const [range, setRange] = useState<Range>("24h");
+  const [range, setRange] = useUrlParam<Range>("range", "24h", RANGE_VALUES);
   const { data, error, loading, reload } = useApi<OverviewData>(`/overview?range=${range}`, { refreshMs: 30_000 });
   const d = data; // stale data stays visible while the next range loads
   const delta = d ? fmtDelta(d.totals.total, d.previous_total) : null;

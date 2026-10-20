@@ -8,7 +8,11 @@ import { Badge, Button, Card, EASE, EmptyState, ErrorState, Icon, Reveal, Segmen
 import { fmtAgo, fmtCompact, fmtUntil, keyLabel, limitText } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
 import type { KeyRow, KeysResponse, Range } from "@/lib/types";
+import { useUrlParam } from "@/lib/useUrlParam";
 import { RANGES } from "./Overview";
+
+const RANGE_VALUES = RANGES.map((r) => r.value);
+const FILTER_VALUES = ["active", "all"] as const;
 
 export function RowMenu({ items }: { items: { label: string; onClick: () => void; danger?: boolean; hidden?: boolean }[] }) {
   const [open, setOpen] = useState(false);
@@ -91,8 +95,8 @@ function Row({ k, range, onOpen, mgr }: { k: KeyRow; range: Range; onOpen: () =>
 
 export default function Keys() {
   const nav = useNavigate();
-  const [range, setRange] = useState<Range>("7d");
-  const [filter, setFilter] = useState<"active" | "all">("active");
+  const [range, setRange] = useUrlParam<Range>("range", "7d", RANGE_VALUES);
+  const [filter, setFilter] = useUrlParam<"active" | "all">("filter", "active", FILTER_VALUES);
   const { data, error, loading, reload } = useApi<KeysResponse>(`/keys?range=${range}`, { refreshMs: 30_000 });
   const mgr = useKeyManager({ onChange: reload, defaults: data?.defaults });
 

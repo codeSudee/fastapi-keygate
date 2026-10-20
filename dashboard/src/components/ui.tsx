@@ -141,6 +141,17 @@ export const StateBadge = ({ state }: { state: "active" | "expired" | "revoked" 
 /* ---- Skeleton / states ------------------------------------------------- */
 export const Skeleton = ({ className }: { className?: string }) => <div aria-hidden className={cx("skeleton", className)} />;
 
+/* Generic page placeholder, used as the Suspense fallback while a page chunk loads. */
+export const PageSkeleton = () => (
+  <div role="status" aria-label="Loading" className="space-y-4 sm:space-y-5">
+    <div className="space-y-2.5 pb-2"><Skeleton className="h-7 w-48" /><Skeleton className="h-4 w-72 max-w-full" /></div>
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4">
+      {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-28 rounded-xl border border-line" />)}
+    </div>
+    <Skeleton className="h-72 rounded-xl border border-line" />
+  </div>
+);
+
 export function EmptyState({ icon, title, body, action }: { icon: ReactNode; title: string; body: string; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center px-6 py-14 text-center">
