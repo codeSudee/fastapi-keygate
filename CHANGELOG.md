@@ -3,7 +3,8 @@
 ## 0.5.1 — 2026-10-21
 
 - Dashboard: the new-key dialog now shows a ready-to-run `curl` command with the key filled in, next to the key itself.
-- New `examples/dashboard_quickstart.py`: your own empty dashboard with one protected route (prints the dashboard link and an admin secret). `examples/dashboard_demo.py` stays the sample-data demo.
+- New `keygate quickstart` command: starts a real, empty dashboard with one protected route (`/hello`) and prints the dashboard link, an admin secret and the next steps. Needs `uvicorn`. `examples/dashboard_demo.py` stays the sample-data demo.
+- New examples: `examples/dashboard_quickstart.py` (same as the command) and `examples/openai_proxy.py` (Keygate keys in front of an OpenAI call; your OpenAI key stays in an environment variable).
 - Fix: `examples/dashboard_demo.py` no longer crashes seeding a fresh database when plans are enabled; its root URL now redirects to the dashboard.
 
 ## 0.5.0 — 2026-10-20

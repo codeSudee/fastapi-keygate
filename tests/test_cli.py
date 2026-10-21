@@ -55,3 +55,18 @@ def test_errors(tmp_path, capsys):
     assert code == 2 and "unlimited" in err
     assert run(db, capsys, "bogus")[0] == 2
     assert run(db, capsys, "create", "a", "--scope", "bad scope")[0] == 1
+
+
+def test_quickstart_app(tmp_path):
+    from fastapi.testclient import TestClient
+
+    from keygate.quickstart import build_app
+
+    app, secret = build_app(f"sqlite:///{tmp_path}/q.db", "s3cret")
+    c = TestClient(app)
+    assert secret == "s3cret"
+    assert c.get("/", follow_redirects=False).headers["location"] == "/keygate/dashboard"
+    assert c.get("/hello").status_code == 401
+    token = c.post("/keygate/dashboard/api/login", json={"secret": "s3cret"}).json()["token"]
+    key = c.post("/keygate/dashboard/api/keys", json={"owner_id": "me"}, headers={"Authorization": f"Bearer {token}"}).json()["key"]
+    assert c.get("/hello", headers={"X-API-Key": key}).json() == {"hello": "me"}

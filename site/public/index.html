@@ -28,7 +28,7 @@
   <nav class="links" aria-label="Primary">
    <a class="hide-sm" href="#features">Features</a>
    <a class="hide-sm" href="#how">How it works</a>
-   <a class="hide-sm" href="#local">Run locally</a>
+   <a class="hide-sm" href="#local">Get started</a>
    <a href="/demo/">Demo</a>
    <a href="https://github.com/codeSudee/fastapi-keygate">GitHub</a>
    <button class="icon-btn" id="theme" type="button" aria-label="Toggle light and dark theme">
@@ -49,7 +49,7 @@
   <button class="copy" type="button" data-target="pip" aria-label="Copy install command">Copy</button>
  </div>
  <div class="cta rv">
-  <a class="btn primary" href="#local">Run it locally</a>
+  <a class="btn primary" href="#local">Get started</a>
   <a class="btn ghost" href="/demo/">See the demo</a>
   <a class="btn ghost" href="https://github.com/codeSudee/fastapi-keygate">View on GitHub</a>
  </div>
@@ -161,13 +161,63 @@ if not gate.list_keys():  # demo only: mint a first key
 </div></section>
 
 <section id="local"><div class="wrap">
- <h2 class="rv">Run your own, in 60 seconds</h2>
- <p class="sub rv">Keygate is a library, not a hosted service. There is no place to paste a key here: you run it in your own app, and it issues and manages the keys for your API. This starts a real, empty dashboard with one protected route.</p>
-<pre class="rv"><code>python3 -m venv .venv &amp;&amp; source .venv/bin/activate
-pip install -q -U fastapi-keygate uvicorn
-curl -O https://raw.githubusercontent.com/codeSudee/fastapi-keygate/main/examples/dashboard_quickstart.py
-python dashboard_quickstart.py</code></pre>
- <p class="sub rv">It prints a dashboard link and an admin secret. Sign in, create a key on the API keys page, then call it: <code>curl -H "X-API-Key: &lt;your key&gt;" localhost:8000/hello</code>. In your own app, add <code>mount_dashboard(app, gate)</code> and sign in with the <code>admin_secret</code> you passed to <code>KeyGate</code>.</p>
+ <h2 class="rv">Try it on your own machine</h2>
+ <p class="sub rv">Keygate is a library, not a hosted service, so there is no page here to paste a key into. You run it yourself, and it creates and checks the keys for your API. These steps take about five minutes and need Python 3.9 or newer.</p>
+ <ol class="guide">
+  <li class="rv"><h3>Install</h3>
+   <p>In a terminal, in any empty folder:</p>
+   <div class="code"><div class="bar"><span>terminal</span><button class="copy" type="button" data-target="g1" aria-label="Copy install commands">Copy</button></div>
+<pre><code id="g1">python3 -m venv .venv &amp;&amp; source .venv/bin/activate
+pip install -q -U fastapi-keygate uvicorn</code></pre></div>
+   <p class="hint">The <code>-U</code> matters: it replaces any older copy you already have.</p></li>
+  <li class="rv"><h3>Start it</h3>
+   <div class="code"><div class="bar"><span>terminal</span><button class="copy" type="button" data-target="g2" aria-label="Copy command">Copy</button></div>
+<pre><code id="g2">keygate quickstart</code></pre></div>
+   <p>This starts a real, empty dashboard and one protected route, <code>/hello</code>. It prints a dashboard link and an admin secret. Leave this terminal running.</p></li>
+  <li class="rv"><h3>Sign in</h3>
+   <p>Open the printed link and enter the admin secret.</p></li>
+  <li class="rv"><h3>Make a key</h3>
+   <p>Go to <b>API keys</b> and click <b>Generate key</b>. Give it any name and owner. Set <b>Per minute</b> to 3 if you want to hit the limit quickly. The key is shown once, together with a ready-to-run command. Click <b>Copy</b> next to the command.</p></li>
+  <li class="rv"><h3>Use the key</h3>
+   <p>Open a second terminal (the plus icon in VS Code, or a new tab) and paste the command. You get <code>{"hello":"..."}</code>. Run it more times than your limit and you get <code>429 Rate limit exceeded</code>. Revoke the key from the <b>⋯</b> menu and the next call returns <code>401</code>. <b>Overview</b> shows every call.</p></li>
+ </ol>
+</div></section>
+
+<section id="openai"><div class="wrap">
+ <h2 class="rv">Put it in front of OpenAI</h2>
+ <p class="sub rv">The usual use: you run an endpoint that calls a paid API. Your callers use Keygate keys, each with its own limit, and your OpenAI key never leaves your server. Your OpenAI key is not a Keygate key and is never pasted into the dashboard.</p>
+ <ol class="guide">
+  <li class="rv"><h3>Stop the quickstart</h3><p>Press <b>Ctrl+C</b> in the terminal where it runs.</p></li>
+  <li class="rv"><h3>Get the example</h3>
+   <div class="code"><div class="bar"><span>terminal</span><button class="copy" type="button" data-target="o1" aria-label="Copy commands">Copy</button></div>
+<pre><code id="o1">pip install -q certifi
+curl -O https://raw.githubusercontent.com/codeSudee/fastapi-keygate/main/examples/openai_proxy.py</code></pre></div>
+   <p class="hint"><code>certifi</code> fixes "could not reach OpenAI" on Python installed from python.org on macOS.</p></li>
+  <li class="rv"><h3>Set your OpenAI key in this terminal</h3>
+   <div class="code"><div class="bar"><span>terminal</span></div>
+<pre><code>export OPENAI_API_KEY=your-openai-key</code></pre></div>
+   <p>Type your own key after the <code>=</code>. It lives only in this terminal window. Never put it in the code or in git.</p></li>
+  <li class="rv"><h3>Run it</h3>
+   <div class="code"><div class="bar"><span>terminal</span><button class="copy" type="button" data-target="o2" aria-label="Copy command">Copy</button></div>
+<pre><code id="o2">python openai_proxy.py</code></pre></div>
+   <p>Sign in to the printed link and generate a key as before.</p></li>
+  <li class="rv"><h3>Ask a question</h3>
+   <div class="code"><div class="bar"><span>second terminal</span><button class="copy" type="button" data-target="o3" aria-label="Copy command">Copy</button></div>
+<pre><code id="o3">curl -X POST localhost:8000/v1/ask -H "X-API-Key: YOUR_KEYGATE_KEY" -H "Content-Type: application/json" -d '{"prompt":"Say hi in five words"}'</code></pre></div>
+   <p>Replace <code>YOUR_KEYGATE_KEY</code> with the key you generated. You get a real answer. Calls over the key's limit are rejected before they reach OpenAI, so they cost nothing. Each successful call is billed by OpenAI as usual.</p></li>
+ </ol>
+</div></section>
+
+<section id="help"><div class="wrap">
+ <h2 class="rv">If something goes wrong</h2>
+ <div class="grid">
+  <div class="card rv"><h3><code>ImportError</code> or version 0.4</h3><p>An older copy is installed. Run <code>pip install -U fastapi-keygate</code>, inside a fresh virtual environment.</p></div>
+  <div class="card rv"><h3><code>command not found: keygate</code></h3><p>The virtual environment is not active in this terminal. Run <code>source .venv/bin/activate</code> first.</p></div>
+  <div class="card rv"><h3>Address already in use</h3><p>Something else is on port 8000. Stop it, or run <code>keygate quickstart --port 8001</code> and use 8001 in the links.</p></div>
+  <div class="card rv"><h3>"Not Found" in the browser</h3><p>Open the <code>/keygate/dashboard</code> link the command printed, not just the bare address.</p></div>
+  <div class="card rv"><h3>401 with a key</h3><p>The key was copied wrongly, revoked or expired. Keys are shown once, so generate a new one.</p></div>
+  <div class="card rv"><h3>"Could not reach OpenAI"</h3><p>Install <code>certifi</code> (step above). The server terminal prints the real reason on the line starting <code>OpenAI connection failed</code>.</p></div>
+ </div>
 </div></section>
 
 <section id="status"><div class="wrap">

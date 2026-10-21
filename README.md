@@ -166,6 +166,8 @@ gate = KeyGate(app, admin_secret="change-me")
 mount_dashboard(app, gate)  # open /keygate/dashboard and sign in with the admin secret
 ```
 
+The fastest way to see your own: `pip install -U fastapi-keygate uvicorn`, then `keygate quickstart`. It starts an empty dashboard with one protected route, `/hello`, and prints the link and an admin secret. Generate a key on the API keys page and the dialog gives you a ready-to-run `curl` command. To put keys in front of a paid API such as OpenAI, see `examples/openai_proxy.py`; your OpenAI key stays in an environment variable and is never a Keygate key.
+
 The API lives under `/keygate/dashboard/api` and reads straight from the gate's own key and usage tables. Try it with sample traffic: `python examples/dashboard_demo.py` (secret: `demo-secret`), or click around the [live demo](https://fastapi-keygate.code-sudeepto.workers.dev/demo/) (sample data, nothing saved).
 
 The UI source is in `dashboard/` (React, TypeScript, Tailwind, Framer Motion). Build it into the package with `cd dashboard && npm install && npm run build`, or run `npm run dev` for hot reload against a local API on :8000.

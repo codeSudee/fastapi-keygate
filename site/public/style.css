@@ -140,3 +140,9 @@ h1 .wd{display:inline-block}
 @media(prefers-reduced-motion:reduce){.mq{-webkit-mask-image:none;mask-image:none}.mq-t{width:auto;flex-wrap:wrap}.mq ul[aria-hidden]{display:none}.mq ul{flex-wrap:wrap}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{transition:none!important;animation:none!important}.rv{opacity:1;transform:none}h1 em{background-size:100% 100%;background-position:0 0}.prog,.spot{display:none}}
 .no-js .rv{opacity:1;transform:none}
+
+.guide{list-style:none;margin:0;padding:0;display:grid;gap:26px;counter-reset:g;max-width:760px}
+.guide li{counter-increment:g;position:relative;padding-left:48px}
+.guide li::before{content:counter(g);position:absolute;left:0;top:0;width:30px;height:30px;border-radius:50%;border:1px solid var(--line2);display:grid;place-items:center;font:600 13px ui-monospace,monospace;color:var(--accent)}
+.guide h3{margin:2px 0 8px;font-size:1.05rem}.guide p{color:var(--muted);margin:8px 0}.guide .hint{font-size:.9rem}
+.guide code{font-size:.88em}.guide p code{background:var(--raised);padding:1px 6px;border-radius:5px}.guide .code pre code{background:none;padding:0}

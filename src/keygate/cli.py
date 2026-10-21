@@ -41,6 +41,9 @@ def _build_parser() -> argparse.ArgumentParser:
     u.add_argument("id", type=int)
     u.add_argument("--last-hours", type=float)
 
+    qs = sub.add_parser("quickstart", help="run a real dashboard with an empty database and one protected route")
+    qs.add_argument("--port", type=int, default=8000)
+
     pr = sub.add_parser("prune", help="delete old usage rows")
     pr.add_argument("--older-than-days", type=float, default=90.0)
     return p
@@ -136,6 +139,10 @@ def main(argv: Optional[List[str]] = None) -> int:
         args = _build_parser().parse_args(argv)
     except SystemExit as e:  # argparse exits; turn that into a return code
         return e.code if isinstance(e.code, int) else 2
+    if args.command == "quickstart":
+        from .quickstart import run
+
+        return run(args.db, args.port)
     try:
         gate = KeyGate(db_url=args.db)
         return _run(args, gate)
