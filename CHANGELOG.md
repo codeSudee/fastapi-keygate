@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1 — 2026-10-21
+
+- Dashboard: the new-key dialog now shows a ready-to-run `curl` command with the key filled in, next to the key itself.
+- New `examples/dashboard_quickstart.py`: your own empty dashboard with one protected route (prints the dashboard link and an admin secret). `examples/dashboard_demo.py` stays the sample-data demo.
+- Fix: `examples/dashboard_demo.py` no longer crashes seeding a fresh database when plans are enabled; its root URL now redirects to the dashboard.
+
 ## 0.5.0 — 2026-10-20
 
 - **Web dashboard:** `mount_dashboard(app, gate)` serves a UI at `/keygate/dashboard` for keys, usage graphs, live rate-limit status, and creating, editing, rotating and revoking keys. Sign in with the `admin_secret` (exchanged for a 12-hour signed token). Works with `KeyGate` and `AsyncKeyGate`. Try it with `python examples/dashboard_demo.py` (secret `demo-secret`), or the [live demo](https://fastapi-keygate.code-sudeepto.workers.dev/demo/) on sample data.
