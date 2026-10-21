@@ -161,15 +161,13 @@ if not gate.list_keys():  # demo only: mint a first key
 </div></section>
 
 <section id="local"><div class="wrap">
- <h2 class="rv">Try the real dashboard in 60 seconds</h2>
- <p class="sub rv">Keygate is a library, not a hosted service. There is no place to paste a key here: you run it in your own app and it manages the keys it issues.</p>
+ <h2 class="rv">Run your own, in 60 seconds</h2>
+ <p class="sub rv">Keygate is a library, not a hosted service. There is no place to paste a key here: you run it in your own app, and it issues and manages the keys for your API. This starts a real, empty dashboard with one protected route.</p>
 <pre class="rv"><code>python3 -m venv .venv &amp;&amp; source .venv/bin/activate
-pip install -U fastapi-keygate uvicorn
-curl -O https://raw.githubusercontent.com/codeSudee/fastapi-keygate/main/examples/dashboard_demo.py
-python dashboard_demo.py
-# open http://localhost:8000/keygate/dashboard
-# sign in with the admin secret: demo-secret</code></pre>
- <p class="sub rv">In your own app, add <code>mount_dashboard(app, gate)</code> and sign in with the <code>admin_secret</code> you passed to <code>KeyGate</code>.</p>
+pip install -q -U fastapi-keygate uvicorn
+curl -O https://raw.githubusercontent.com/codeSudee/fastapi-keygate/main/examples/dashboard_quickstart.py
+python dashboard_quickstart.py</code></pre>
+ <p class="sub rv">It prints a dashboard link and an admin secret. Sign in, create a key on the API keys page, then call it: <code>curl -H "X-API-Key: &lt;your key&gt;" localhost:8000/hello</code>. In your own app, add <code>mount_dashboard(app, gate)</code> and sign in with the <code>admin_secret</code> you passed to <code>KeyGate</code>.</p>
 </div></section>
 
 <section id="status"><div class="wrap">
