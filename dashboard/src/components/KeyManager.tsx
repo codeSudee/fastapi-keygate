@@ -83,15 +83,25 @@ function KeyForm({ initial, defaults, onSubmit, onCancel, busy, error }: {
   );
 }
 
-function SecretReveal({ created, onClose, title }: { created: CreatedKey | null; onClose: () => void; title: string }) {
-  const [copied, setCopied] = useState(false);
-  async function copy() {
-    if (!created) return;
-    try { await navigator.clipboard.writeText(created.key); } catch {
-      const t = document.createElement("textarea"); t.value = created.key; document.body.append(t); t.select(); document.execCommand("copy"); t.remove();
-    }
-    setCopied(true); setTimeout(() => setCopied(false), 2000);
+async function copyText(text: string) {
+  try { await navigator.clipboard.writeText(text); } catch {
+    const t = document.createElement("textarea"); t.value = text; document.body.append(t); t.select(); document.execCommand("copy"); t.remove();
   }
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <Button onClick={async () => { await copyText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }} className="h-auto min-w-24 shrink-0" aria-live="polite">
+      <motion.span key={String(copied)} initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="inline-flex items-center gap-1.5">
+        {copied ? <>{Icon.check} Copied</> : <>{Icon.copy} Copy</>}
+      </motion.span>
+    </Button>
+  );
+}
+
+function SecretReveal({ created, onClose, title }: { created: CreatedKey | null; onClose: () => void; title: string }) {
+  const curl = created ? `curl -H "X-API-Key: ${created.key}" ${window.location.origin}/hello` : "";
   return (
     <Modal open={!!created} onClose={onClose} title={title} wide>
       {created && (
@@ -104,12 +114,16 @@ function SecretReveal({ created, onClose, title }: { created: CreatedKey | null;
             <p className="mb-1.5 text-[13px] font-medium">{keyLabel(created)}</p>
             <div className="flex items-stretch gap-2">
               <code data-autofocus tabIndex={0} className="min-w-0 flex-1 select-all break-all rounded-lg border border-line bg-bg px-3 py-2.5 font-mono text-[13px] leading-relaxed">{created.key}</code>
-              <Button onClick={copy} className="h-auto min-w-24 shrink-0" aria-live="polite">
-                <motion.span key={String(copied)} initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="inline-flex items-center gap-1.5">
-                  {copied ? <>{Icon.check} Copied</> : <>{Icon.copy} Copy</>}
-                </motion.span>
-              </Button>
+              <CopyButton text={created.key} />
             </div>
+          </div>
+          <div>
+            <p className="mb-1.5 text-[13px] font-medium">Try it in a terminal</p>
+            <div className="flex items-stretch gap-2">
+              <code tabIndex={0} className="min-w-0 flex-1 select-all break-all rounded-lg border border-line bg-bg px-3 py-2.5 font-mono text-[13px] leading-relaxed">{curl}</code>
+              <CopyButton text={curl} />
+            </div>
+            <p className="mt-1.5 text-[12px] text-muted">Replace <code className="font-mono">/hello</code> with a route you protect with <code className="font-mono">gate.require</code>.</p>
           </div>
           <div className="flex justify-end"><Button variant="primary" onClick={onClose}>I've saved it</Button></div>
         </div>
