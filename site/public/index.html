@@ -28,6 +28,7 @@
   <nav class="links" aria-label="Primary">
    <a class="hide-sm" href="#features">Features</a>
    <a class="hide-sm" href="#how">How it works</a>
+   <a class="hide-sm" href="#local">Run locally</a>
    <a href="/demo/">Demo</a>
    <a href="https://github.com/codeSudee/fastapi-keygate">GitHub</a>
    <button class="icon-btn" id="theme" type="button" aria-label="Toggle light and dark theme">
@@ -48,9 +49,11 @@
   <button class="copy" type="button" data-target="pip" aria-label="Copy install command">Copy</button>
  </div>
  <div class="cta rv">
-  <a class="btn primary" href="/demo/">Try the live demo</a>
+  <a class="btn primary" href="#local">Run it locally</a>
+  <a class="btn ghost" href="/demo/">See the demo</a>
   <a class="btn ghost" href="https://github.com/codeSudee/fastapi-keygate">View on GitHub</a>
  </div>
+ <p class="lead rv" style="font-size:.9rem;margin-top:14px">The demo uses sample data. Keygate runs inside your own app, so your keys never leave your server.</p>
 </div></div>
 
 <div class="mq wrap" role="group" aria-label="Built on and included">
@@ -147,14 +150,26 @@ if not gate.list_keys():  # demo only: mint a first key
 
 <section id="dashboard"><div class="wrap">
  <h2 class="rv">A dashboard, built in</h2>
- <p class="sub rv">Sign in with your admin secret. The live demo runs on seeded sample data.</p>
+ <p class="sub rv">Sign in with your admin secret. The online demo runs on seeded sample data.</p>
  <div class="mock rv" role="img" aria-label="Illustration of the dashboard: summary stats, a requests chart and a list of keys">
   <div class="tb"><i></i><i></i><i></i></div>
   <div class="row"><div class="stat">Active keys<b>12</b></div><div class="stat">Requests, 24h<b>4,210</b></div><div class="stat">Rate limited<b>38</b></div></div>
   <svg viewBox="0 0 600 140" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".4"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs><path d="M0 110C60 100 90 60 150 70S240 110 300 80 400 20 450 40 540 70 600 30V140H0Z" fill="url(#g)"/><path d="M0 110C60 100 90 60 150 70S240 110 300 80 400 20 450 40 540 70 600 30" fill="none" stroke="var(--accent)" stroke-width="2.5"/></svg>
   <div class="keys"><div><span class="mono">kg_a1b2c3…</span><span>acme / prod</span></div><div><span class="mono">kg_d4e5f6…</span><span>acme / staging</span></div></div>
  </div>
- <p class="mock-cap">Illustration only. <a href="/demo/">Open the real thing</a>: sample data, enter any value to sign in.</p>
+ <p class="mock-cap">Illustration only. <a href="/demo/">Open the sample-data demo</a>: enter any value to sign in. For your own data, <a href="#local">run it locally</a>.</p>
+</div></section>
+
+<section id="local"><div class="wrap">
+ <h2 class="rv">Try the real dashboard in 60 seconds</h2>
+ <p class="sub rv">Keygate is a library, not a hosted service. There is no place to paste a key here: you run it in your own app and it manages the keys it issues.</p>
+<pre class="rv"><code>python3 -m venv .venv &amp;&amp; source .venv/bin/activate
+pip install -U fastapi-keygate uvicorn
+curl -O https://raw.githubusercontent.com/codeSudee/fastapi-keygate/main/examples/dashboard_demo.py
+python dashboard_demo.py
+# open http://localhost:8000/keygate/dashboard
+# sign in with the admin secret: demo-secret</code></pre>
+ <p class="sub rv">In your own app, add <code>mount_dashboard(app, gate)</code> and sign in with the <code>admin_secret</code> you passed to <code>KeyGate</code>.</p>
 </div></section>
 
 <section id="status"><div class="wrap">
@@ -172,7 +187,7 @@ if not gate.list_keys():  # demo only: mint a first key
   <a href="https://github.com/codeSudee/fastapi-keygate">GitHub</a>
   <a href="https://pypi.org/project/fastapi-keygate/">PyPI</a>
   <a href="https://github.com/codeSudee/fastapi-keygate/issues">Issues</a>
-  <a href="/demo/">Live demo</a>
+  <a href="/demo/">Sample-data demo</a>
  </nav>
 </div></footer>
 <script src="/main.js" defer></script>
