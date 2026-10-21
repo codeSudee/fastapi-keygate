@@ -73,4 +73,4 @@ if not gate.list_keys(include_revoked=True):
 
 if __name__ == "__main__":
     print("\nDashboard: http://localhost:8000/keygate/dashboard   (admin secret: demo-secret)\n")
-    uvicorn.run(app, port=8000)
+    uvicorn.run(app, port=8000, log_level="warning")
