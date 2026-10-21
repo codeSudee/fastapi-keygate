@@ -39,6 +39,7 @@ def seed() -> None:
     paths = [("GET", "/hello", 55), ("GET", "/v1/items", 25), ("POST", "/v1/items", 12), ("GET", "/v1/reports", 8)]
     now, rows = utcnow(), []
     for name, owner, pm, ph, scopes, weight in specs:
+        gate.set_plan(owner, "team")  # the Free plan would reject the seeded keys
         k = gate.create_key(owner, name, per_minute=pm, per_hour=ph, scopes=scopes)
         for h in range(30 * 24):
             ts0 = now - timedelta(hours=h)
