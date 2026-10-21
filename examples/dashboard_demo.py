@@ -13,6 +13,7 @@ from datetime import timedelta
 
 import uvicorn
 from fastapi import Depends, FastAPI
+from fastapi.responses import RedirectResponse
 from keygate import DEFAULT_PLANS, ApiKey, KeyGate
 from keygate.dashboard import mount_dashboard
 from keygate.models import UsageRow, utcnow
@@ -20,6 +21,11 @@ from keygate.models import UsageRow, utcnow
 app = FastAPI()
 gate = KeyGate(app, db_url="sqlite:///dashboard-demo.db", admin_secret="demo-secret", plans=DEFAULT_PLANS)
 mount_dashboard(app, gate)
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse("/keygate/dashboard")
 
 
 @app.get("/hello")
@@ -66,4 +72,5 @@ if not gate.list_keys(include_revoked=True):
     seed()
 
 if __name__ == "__main__":
+    print("\nDashboard: http://localhost:8000/keygate/dashboard   (admin secret: demo-secret)\n")
     uvicorn.run(app, port=8000)
