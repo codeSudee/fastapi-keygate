@@ -1,11 +1,11 @@
 # fastapi-keygate: session context
 
-Last updated: 2026-10-20. Read this first in a new session, then verify against the code and `git log`.
+Last updated: 2026-10-21. Read this first in a new session, then verify against the code and `git log`.
 
 ## What this is
 `fastapi-keygate` (import `keygate`): API-key auth, per-key rate limits and usage tracking for FastAPI.
 SQLAlchemy (SQLite default), `limits` for rate limiting. Sync `KeyGate` and `AsyncKeyGate`.
-GitHub: codeSudee/fastapi-keygate. PyPI: 0.5.0. Python tests: `.venv/bin/python -m pytest -q`.
+GitHub: codeSudee/fastapi-keygate. PyPI: 0.5.1. Python tests: `.venv/bin/python -m pytest -q`.
 
 ## What exists
 - Core library, CLI, rotation, scopes, expiry, usage batching/pruning. See README.
@@ -28,14 +28,16 @@ Design is in `docs/PLANS.md`. User decisions so far:
 - Step (3) Stripe test mode is deferred indefinitely, see the revised model above.
 - Grace period (decided, not yet coded): past-due keeps full access for ~14 days (configurable by the adopter); after that block new keys and fall back to the default plan; never auto-revoke existing keys. Based on dunning guidance of 3-4 retries over 2-3 weeks; verify against Stripe docs before relying on it.
 
-## Where we left off (2026-10-20) / next step: LAUNCH
-State: 0.5.0 is RELEASED and pushed. 78 tests pass, 3 skipped. Run `git log --oneline -6` and `git status -sb` to confirm.
+## Where we left off (2026-10-21) / next step: LAUNCH
+State: 0.5.1 is RELEASED and pushed (0.5.0 on 2026-10-20). 79 tests pass, 3 skipped. Run `git log --oneline -6` and `git status -sb` to confirm.
 - Shipped in 0.5.0: dashboard (phone layout, URL-synced ranges, skeletons, Keys->detail title morph, portaled row menu, sign-in theme toggle and show/hide secret, animation polish), opt-in plans + read-only Plans page, landing site and mock-data demo in `site/`.
-- **Release done (2026-10-20):** https://github.com/codeSudee/fastapi-keygate/releases/tag/v0.5.0. The Publish workflow's first run succeeded (it builds the dashboard and asserts the wheel contains `dashboard_static/index.html`). A clean venv `pip install fastapi-keygate==0.5.0` has `dashboard_static/index.html`. Not done: starting a server from that install and opening `/keygate/dashboard` in a browser.
-- **Live site (redeployed 2026-10-20 with the v0.5 pill, Cloudflare Workers static assets):** https://fastapi-keygate.code-sudeepto.workers.dev (`/` landing, `/demo/` dashboard on sample data with hash routes). Redeploy: `cd dashboard && npm run build:demo`, then `cd site && npx wrangler deploy` (wrangler OAuth login is saved on the user's machine; `npx wrangler logout` removes it).
+- **Release done (2026-10-20):** https://github.com/codeSudee/fastapi-keygate/releases/tag/v0.5.0. The Publish workflow's first run succeeded (it builds the dashboard and asserts the wheel contains `dashboard_static/index.html`). A clean venv `pip install fastapi-keygate==0.5.0` has `dashboard_static/index.html`. Verified 2026-10-20: a server started from that clean PyPI install serves `/keygate/dashboard`, login with `admin_secret` works and the Overview page loads (checked in Chrome).
+- **0.5.1 released (2026-10-21):** https://github.com/codeSudee/fastapi-keygate/releases/tag/v0.5.1. Publish and CI passed; a clean venv `pip install fastapi-keygate==0.5.1` runs `keygate quickstart` and serves the dashboard. Changes: new-key dialog shows a ready-to-run `curl` command with the key filled in; new `keygate quickstart` command (`src/keygate/quickstart.py`: empty real dashboard + `/hello`, prints link, random admin secret and next steps; needs `uvicorn`); `examples/dashboard_quickstart.py` and `examples/openai_proxy.py` (Keygate keys in front of an OpenAI call, key read from `OPENAI_API_KEY`, never pasted into chat or files); demo seed fix (demo owners go on the Team plan, `/` redirects to the dashboard, quiet logs).
+- **Why 0.5.1 exists:** the user hit every first-run failure in turn. The site's "run locally" steps were wrong (no `-U`, so an old global 0.4.0 shadowed 0.5; no `uvicorn`), `dashboard_demo.py` crashed seeding a fresh database under the Free plan (never run fresh since plans landed; a stale local `.db` hid it), the demo is sample data so it can't show *their* keys (the quickstart is the real path), and Python from python.org on macOS lacks CA certificates (fix: `pip install certifi`, which the OpenAI example uses if present). Lesson: test any first-run path from an empty directory and a fresh venv, not from the repo.
+- **Live site (redeployed 2026-10-21 with the Get started / OpenAI / troubleshooting guide at `/#local`; earlier the v0.5 pill, Cloudflare Workers static assets):** https://fastapi-keygate.code-sudeepto.workers.dev (`/` landing, `/demo/` dashboard on sample data with hash routes). Redeploy: `cd dashboard && npm run build:demo`, then `cd site && npx wrangler deploy` (wrangler OAuth login is saved on the user's machine; `npx wrangler logout` removes it).
 - After release: the launch (user's plan): demo/launch video via HeyGen HyperFrames in a new session plus a dedicated X account. When the user says building is done, explain how the video gets made and leave a pasteable brief (see memory `launch-plan`). Never post or create accounts without explicit confirmation.
 - Nothing is blocked on decisions. Optional later work: enforce `billing_status` with the grace policy only if demand shows up; sidebar nav discards unsaved Settings edits silently (needs a data router or a confirm in Shell); real-device emulation not tested (phone width checked at 390/360px via iframes).
-- Dev loop: `python examples/dashboard_demo.py` (secret `demo-secret`) serves the built UI at `localhost:8000/keygate/dashboard`; rebuild UI with `cd dashboard && npm run build`. Stop the demo with `pkill -f dashboard_demo.py`.
+- Dev loop (the user's own test servers often hold port 8000; check `lsof -nP -iTCP:8000 -sTCP:LISTEN` and use another port instead of killing them): `python examples/dashboard_demo.py` (secret `demo-secret`) serves the built UI at `localhost:8000/keygate/dashboard`; rebuild UI with `cd dashboard && npm run build`. Stop the demo with `pkill -f dashboard_demo.py`.
 - Always run `git log --oneline -5` and `git status` first to confirm this file is current.
 
 ## Known gaps and honest risks
